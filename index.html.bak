@@ -122,10 +122,10 @@
     // ============================================================
 
     const TAG_STYLES = {
-      Jazz: { bg: "rgba(245,158,11,0.12)", color: "#b45309", border: "rgba(245,158,11,0.2)" },
-      Contemporary: { bg: "rgba(217,119,6,0.1)", color: "#92400e", border: "rgba(217,119,6,0.2)" },
-      Foundation: { bg: "rgba(217,119,6,0.1)", color: "#b45309", border: "rgba(217,119,6,0.2)" },
-      Crossover: { bg: "rgba(234,88,12,0.1)", color: "#9a3412", border: "rgba(234,88,12,0.2)" },
+      Jazz: { bg: "rgba(212,152,58,0.12)", color: "#9a6e30", border: "rgba(212,152,58,0.2)" },
+      Contemporary: { bg: "rgba(90,154,122,0.12)", color: "#3a7a5a", border: "rgba(90,154,122,0.2)" },
+      Foundation: { bg: "rgba(138,122,176,0.12)", color: "#6a5a90", border: "rgba(138,122,176,0.2)" },
+      Crossover: { bg: "rgba(196,120,88,0.12)", color: "#8a5040", border: "rgba(196,120,88,0.2)" },
     };
 
     const CONTENT_TYPES = ["Watch", "Play", "Practice", "Listen", "Review"];
@@ -140,47 +140,47 @@
     // ============================================================
 
     const styles = {
-      app: { fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif", background: "#f8fafc", minHeight: "100vh", color: "#1e293b" },
-      topBar: { background: "#1e293b", padding: "14px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 100 },
-      logo: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "20px", fontWeight: 700, color: "#fff", letterSpacing: "0.5px" },
-      logoAccent: { color: "#f59e0b" },
+      app: { fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif", background: "#faf6f0", minHeight: "100vh", color: "#3d2e1e" },
+      topBar: { background: "#3d2e1e", padding: "14px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 100 },
+      logo: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "20px", fontWeight: 700, color: "#e8c878", letterSpacing: "0.5px" },
+      logoAccent: { color: "#e8c878" },
       nav: { display: "flex", gap: "8px" },
-      navBtn: (active) => ({ padding: "8px 16px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "13px", fontWeight: 500, background: active ? "rgba(251,191,36,0.2)" : "transparent", color: active ? "#fbbf24" : "rgba(255,255,255,0.5)", transition: "all 0.2s" }),
-      switchBtn: { padding: "8px 16px", borderRadius: "8px", border: "1px solid rgba(251,191,36,0.35)", cursor: "pointer", fontSize: "12px", fontWeight: 500, background: "transparent", color: "#fbbf24", marginLeft: "16px" },
+      navBtn: (active) => ({ padding: "8px 16px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "13px", fontWeight: 500, background: active ? "rgba(232,200,120,0.15)" : "transparent", color: active ? "#e8c878" : "rgba(255,255,255,0.5)", transition: "all 0.2s" }),
+      switchBtn: { padding: "8px 16px", borderRadius: "8px", border: "1px solid rgba(232,200,120,0.3)", cursor: "pointer", fontSize: "12px", fontWeight: 500, background: "transparent", color: "#e8c878", marginLeft: "16px" },
       container: { maxWidth: "1100px", margin: "0 auto", padding: "32px 24px" },
-      pageTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "28px", fontWeight: 600, color: "#1e293b", marginBottom: "4px" },
-      pageSubtitle: { fontSize: "14px", color: "#64748b", marginBottom: "32px" },
-      card: { background: "#fff", borderRadius: "14px", padding: "24px", boxShadow: "0 2px 12px rgba(51,65,85,0.06)", border: "1px solid rgba(51,65,85,0.08)", marginBottom: "20px" },
-      cardTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "18px", color: "#1e293b", marginBottom: "4px" },
-      cardSub: { fontSize: "12px", color: "#94a3b8", marginBottom: "16px" },
-      input: { width: "100%", padding: "10px 14px", borderRadius: "10px", border: "1.5px solid #e2e8f0", background: "#f8fafc", fontSize: "14px", color: "#1e293b", outline: "none", fontFamily: "inherit", boxSizing: "border-box" },
-      textarea: { width: "100%", padding: "10px 14px", borderRadius: "10px", border: "1.5px solid #e2e8f0", background: "#f8fafc", fontSize: "14px", color: "#1e293b", outline: "none", fontFamily: "inherit", minHeight: "80px", resize: "vertical", boxSizing: "border-box" },
-      select: { padding: "10px 14px", borderRadius: "10px", border: "1.5px solid #e2e8f0", background: "#f8fafc", fontSize: "14px", color: "#1e293b", outline: "none", fontFamily: "inherit", cursor: "pointer" },
-      btnPrimary: { padding: "10px 24px", borderRadius: "10px", border: "none", cursor: "pointer", fontSize: "14px", fontWeight: 500, background: "linear-gradient(135deg, #d97706, #f59e0b)", color: "#fff", boxShadow: "0 3px 12px rgba(217,119,6,0.25)" },
-      btnSecondary: { padding: "10px 24px", borderRadius: "10px", border: "1.5px solid #d97706", cursor: "pointer", fontSize: "14px", fontWeight: 500, background: "transparent", color: "#b45309" },
-      btnGhost: { padding: "10px 24px", borderRadius: "10px", border: "none", cursor: "pointer", fontSize: "14px", fontWeight: 500, background: "rgba(0,0,0,0.03)", color: "#64748b" },
-      btnSuccess: { padding: "10px 24px", borderRadius: "10px", border: "none", cursor: "pointer", fontSize: "14px", fontWeight: 500, background: "linear-gradient(135deg, #10b981, #34d399)", color: "#fff", boxShadow: "0 3px 12px rgba(16,185,129,0.2)" },
-      btnDanger: { padding: "6px 12px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "12px", background: "rgba(239,68,68,0.08)", color: "#dc2626" },
+      pageTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "28px", fontWeight: 600, color: "#3d2e1e", marginBottom: "4px" },
+      pageSubtitle: { fontSize: "14px", color: "#8a7560", marginBottom: "32px" },
+      card: { background: "#fff", borderRadius: "14px", padding: "24px", boxShadow: "0 2px 12px rgba(60,40,20,0.05)", border: "1px solid rgba(180,130,60,0.08)", marginBottom: "20px" },
+      cardTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "18px", color: "#3d2e1e", marginBottom: "4px" },
+      cardSub: { fontSize: "12px", color: "#a08a70", marginBottom: "16px" },
+      input: { width: "100%", padding: "10px 14px", borderRadius: "10px", border: "1.5px solid #e8ddd0", background: "#faf6f0", fontSize: "14px", color: "#3d2e1e", outline: "none", fontFamily: "inherit", boxSizing: "border-box" },
+      textarea: { width: "100%", padding: "10px 14px", borderRadius: "10px", border: "1.5px solid #e8ddd0", background: "#faf6f0", fontSize: "14px", color: "#3d2e1e", outline: "none", fontFamily: "inherit", minHeight: "80px", resize: "vertical", boxSizing: "border-box" },
+      select: { padding: "10px 14px", borderRadius: "10px", border: "1.5px solid #e8ddd0", background: "#faf6f0", fontSize: "14px", color: "#3d2e1e", outline: "none", fontFamily: "inherit", cursor: "pointer" },
+      btnPrimary: { padding: "10px 24px", borderRadius: "10px", border: "none", cursor: "pointer", fontSize: "14px", fontWeight: 500, background: "linear-gradient(135deg, #c88640, #d8a040)", color: "#fff", boxShadow: "0 3px 12px rgba(200,134,64,0.25)" },
+      btnSecondary: { padding: "10px 24px", borderRadius: "10px", border: "1.5px solid #c8a060", cursor: "pointer", fontSize: "14px", fontWeight: 500, background: "transparent", color: "#9a6e30" },
+      btnGhost: { padding: "10px 24px", borderRadius: "10px", border: "none", cursor: "pointer", fontSize: "14px", fontWeight: 500, background: "rgba(200,150,60,0.08)", color: "#8a7560" },
+      btnSuccess: { padding: "10px 24px", borderRadius: "10px", border: "none", cursor: "pointer", fontSize: "14px", fontWeight: 500, background: "linear-gradient(135deg, #5a9a7a, #6aaa88)", color: "#fff", boxShadow: "0 3px 12px rgba(90,154,122,0.2)" },
+      btnDanger: { padding: "6px 12px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "12px", background: "rgba(180,60,60,0.08)", color: "#a04040" },
       btnSmall: { padding: "6px 14px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: 500 },
       tag: (type) => {
         const s = TAG_STYLES[type] || TAG_STYLES.Foundation;
         return { display: "inline-block", padding: "3px 12px", borderRadius: "20px", fontSize: "11px", fontWeight: 500, background: s.bg, color: s.color, border: `1px solid ${s.border}` };
       },
       grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" },
-      progressBar: { height: "6px", background: "#e2e8f0", borderRadius: "3px", overflow: "hidden", marginTop: "8px" },
-      progressFill: (pct) => ({ height: "100%", borderRadius: "3px", background: "linear-gradient(90deg, #f59e0b, #fcd34d)", width: `${pct}%`, transition: "width 0.3s ease" }),
-      streak: { display: "inline-flex", alignItems: "center", gap: "6px", background: "rgba(245,158,11,0.12)", padding: "6px 14px", borderRadius: "20px", fontSize: "13px", color: "#d97706", marginTop: "10px" },
-      emptyState: { textAlign: "center", padding: "48px 24px", color: "#94a3b8" },
-      emptyTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "20px", color: "#64748b", marginBottom: "8px" },
+      progressBar: { height: "6px", background: "#efe6d8", borderRadius: "3px", overflow: "hidden", marginTop: "8px" },
+      progressFill: (pct) => ({ height: "100%", borderRadius: "3px", background: "linear-gradient(90deg, #d4983a, #e8b450)", width: `${pct}%`, transition: "width 0.3s ease" }),
+      streak: { display: "inline-flex", alignItems: "center", gap: "6px", background: "rgba(228,160,50,0.1)", padding: "6px 14px", borderRadius: "20px", fontSize: "13px", color: "#b8863e", marginTop: "10px" },
+      emptyState: { textAlign: "center", padding: "48px 24px", color: "#a08a70" },
+      emptyTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "20px", color: "#8a7560", marginBottom: "8px" },
       formGroup: { marginBottom: "16px" },
-      label: { display: "block", fontSize: "12px", fontWeight: 500, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "1px" },
-      stepItem: (completed) => ({ display: "flex", alignItems: "flex-start", gap: "12px", padding: "14px 0", borderBottom: "1px solid rgba(51,65,85,0.08)", opacity: completed ? 0.6 : 1 }),
-      stepCheck: (completed) => ({ width: "28px", height: "28px", borderRadius: "50%", border: completed ? "none" : "2px solid #cbd5e1", background: completed ? "#10b981" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, color: "#fff", marginTop: "2px", transition: "all 0.2s" }),
-      contentTypeIcon: { display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", color: "#d97706", marginBottom: "4px" },
-      modal: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(15,23,42,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: "20px" },
-      modalContent: { background: "#fff", borderRadius: "16px", padding: "32px", maxWidth: "560px", width: "100%", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(15,23,42,0.15)" },
-      modalTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "22px", color: "#1e293b", marginBottom: "20px" },
-      divider: { height: "1px", background: "rgba(51,65,85,0.1)", margin: "20px 0" },
+      label: { display: "block", fontSize: "12px", fontWeight: 500, color: "#8a7560", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "1px" },
+      stepItem: (completed) => ({ display: "flex", alignItems: "flex-start", gap: "12px", padding: "14px 0", borderBottom: "1px solid rgba(180,130,60,0.08)", opacity: completed ? 0.6 : 1 }),
+      stepCheck: (completed) => ({ width: "28px", height: "28px", borderRadius: "50%", border: completed ? "none" : "2px solid #d0c4b0", background: completed ? "#5a9a7a" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, color: "#fff", marginTop: "2px", transition: "all 0.2s" }),
+      contentTypeIcon: { display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", color: "#b8863e", marginBottom: "4px" },
+      modal: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(30,20,10,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: "20px" },
+      modalContent: { background: "#fff", borderRadius: "16px", padding: "32px", maxWidth: "560px", width: "100%", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(30,20,10,0.2)" },
+      modalTitle: { fontFamily: "'Playfair Display', Georgia, serif", fontSize: "22px", color: "#3d2e1e", marginBottom: "20px" },
+      divider: { height: "1px", background: "rgba(180,130,60,0.1)", margin: "20px 0" },
     };
 
     // ============================================================
@@ -196,9 +196,9 @@
     function ErrorBanner({ message, onDismiss }) {
       if (!message) return null;
       return (
-        <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: "10px", padding: "12px 20px", margin: "0 0 20px 0", display: "flex", justifyContent: "space-between", alignItems: "center", color: "#b91c1c", fontSize: "14px" }}>
+        <div style={{ background: "rgba(180,60,60,0.1)", border: "1px solid rgba(180,60,60,0.25)", borderRadius: "10px", padding: "12px 20px", margin: "0 0 20px 0", display: "flex", justifyContent: "space-between", alignItems: "center", color: "#8a3030", fontSize: "14px" }}>
           <span>{message}</span>
-          {onDismiss && <button onClick={onDismiss} style={{ background: "none", border: "none", cursor: "pointer", color: "#b91c1c", fontWeight: 700, fontSize: "16px" }}>x</button>}
+          {onDismiss && <button onClick={onDismiss} style={{ background: "none", border: "none", cursor: "pointer", color: "#8a3030", fontWeight: 700, fontSize: "16px" }}>x</button>}
         </div>
       );
     }
@@ -209,8 +209,8 @@
 
     function Loading({ message }) {
       return (
-        <div style={{ textAlign: "center", padding: "48px 24px", color: "#94a3b8" }}>
-          <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "18px", color: "#64748b", marginBottom: "8px" }}>{message || "Loading..."}</div>
+        <div style={{ textAlign: "center", padding: "48px 24px", color: "#a08a70" }}>
+          <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "18px", color: "#8a7560", marginBottom: "8px" }}>{message || "Loading..."}</div>
         </div>
       );
     }
@@ -280,9 +280,9 @@
       const tabStyle = (active) => ({
         flex: 1, padding: "12px", border: "none", cursor: "pointer",
         fontSize: "14px", fontWeight: 600,
-        background: active ? "#fff" : "rgba(0,0,0,0.02)",
-        color: active ? "#1e293b" : "#94a3b8",
-        borderBottom: active ? "3px solid #f59e0b" : "3px solid transparent",
+        background: active ? "#fff" : "rgba(200,150,60,0.06)",
+        color: active ? "#3d2e1e" : "#a08a70",
+        borderBottom: active ? "3px solid #d4983a" : "3px solid transparent",
         transition: "all 0.2s",
         borderRadius: 0,
       });
@@ -291,13 +291,13 @@
         <div style={{ ...styles.app, display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
           <div style={{ width: "100%", maxWidth: "420px", padding: "24px" }}>
             <div style={{ textAlign: "center", marginBottom: "40px" }}>
-              <h1 style={{ ...styles.logo, fontSize: "32px", marginBottom: "8px", color: "#1e293b" }}>My <span style={{ color: "#d97706" }}>Woodshed</span> Music</h1>
-              <p style={{ fontSize: "14px", color: "#64748b" }}>Your teaching studio, organised</p>
+              <h1 style={{ ...styles.logo, fontSize: "32px", marginBottom: "8px" }}>My <span style={styles.logoAccent}>Woodshed</span> Music</h1>
+              <p style={{ fontSize: "14px", color: "#8a7560" }}>Your teaching studio, organised</p>
             </div>
 
             <div style={{ ...styles.card, padding: 0, overflow: "hidden" }}>
               {/* Tab bar */}
-              <div style={{ display: "flex", borderBottom: "1px solid rgba(51,65,85,0.08)" }}>
+              <div style={{ display: "flex", borderBottom: "1px solid rgba(180,130,60,0.08)" }}>
                 <button style={tabStyle(loginMode === 'teacher')} onClick={() => { setLoginMode('teacher'); setError(""); }}>
                   I'm a Teacher
                 </button>
@@ -332,7 +332,7 @@
                     </form>
                     <div style={styles.divider} />
                     <div style={{ textAlign: "center" }}>
-                      <button onClick={() => { setIsRegister(!isRegister); setError(""); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "14px", color: "#d97706" }}>
+                      <button onClick={() => { setIsRegister(!isRegister); setError(""); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "14px", color: "#b8863e" }}>
                         {isRegister ? "Already have an account? Sign in" : "Need an account? Register"}
                       </button>
                     </div>
@@ -340,7 +340,7 @@
                 ) : (
                   <>
                     <div style={styles.modalTitle}>Student Login</div>
-                    <p style={{ fontSize: "14px", color: "#64748b", marginBottom: "20px", lineHeight: 1.5 }}>
+                    <p style={{ fontSize: "14px", color: "#8a7560", marginBottom: "20px", lineHeight: 1.5 }}>
                       {studentIdFromUrl
                         ? "Enter the 6-digit PIN your teacher gave you."
                         : "Enter the 6-digit PIN your teacher shared with you."}
@@ -364,7 +364,7 @@
                       </button>
                     </form>
                     <div style={styles.divider} />
-                    <p style={{ fontSize: "12px", color: "#94a3b8", textAlign: "center", lineHeight: 1.5 }}>
+                    <p style={{ fontSize: "12px", color: "#a08a70", textAlign: "center", lineHeight: 1.5 }}>
                       Don't have a PIN? Ask your teacher to share your practice link.
                     </p>
                   </>
@@ -549,19 +549,19 @@
             const content = getContent(step.contentId);
             return (
               <div key={step.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 0", borderBottom: "1px solid rgba(180,130,60,0.06)" }}>
-                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "12px", color: "#d97706", width: "24px" }}>{i + 1}.</span>
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "12px", color: "#b8863e", width: "24px" }}>{i + 1}.</span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: "14px", color: "#1e293b", fontWeight: 500 }}>{content?.title || "Unknown"}</div>
-                  {step.notes && <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>{step.notes}</div>}
+                  <div style={{ fontSize: "14px", color: "#3d2e1e", fontWeight: 500 }}>{content?.title || "Unknown"}</div>
+                  {step.notes && <div style={{ fontSize: "12px", color: "#8a7560", marginTop: "2px" }}>{step.notes}</div>}
                   <div style={{ display: "flex", gap: "6px", marginTop: "4px" }}>
                     {content && <span style={styles.tag(content.track)}>{content.track}</span>}
                     {content && <span style={{ ...styles.contentTypeIcon, fontSize: "10px" }}>{content.type}</span>}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
-                  <button onClick={() => moveStep(i, -1)} style={{ ...styles.btnSmall, background: "rgba(0,0,0,0.03)", color: "#64748b", border: "none", cursor: "pointer" }}><Icons.ChevronUp /></button>
-                  <button onClick={() => moveStep(i, 1)} style={{ ...styles.btnSmall, background: "rgba(0,0,0,0.03)", color: "#64748b", border: "none", cursor: "pointer" }}><Icons.ChevronDown /></button>
-                  <button onClick={() => removeStep(step.id)} style={{ ...styles.btnSmall, background: "rgba(180,60,60,0.06)", color: "#dc2626", border: "none", cursor: "pointer" }}><Icons.Trash /></button>
+                  <button onClick={() => moveStep(i, -1)} style={{ ...styles.btnSmall, background: "rgba(200,150,60,0.08)", color: "#8a7560", border: "none", cursor: "pointer" }}><Icons.ChevronUp /></button>
+                  <button onClick={() => moveStep(i, 1)} style={{ ...styles.btnSmall, background: "rgba(200,150,60,0.08)", color: "#8a7560", border: "none", cursor: "pointer" }}><Icons.ChevronDown /></button>
+                  <button onClick={() => removeStep(step.id)} style={{ ...styles.btnSmall, background: "rgba(180,60,60,0.06)", color: "#a04040", border: "none", cursor: "pointer" }}><Icons.Trash /></button>
                 </div>
               </div>
             );
@@ -612,15 +612,15 @@
       return (
         <Modal onClose={onClose}>
           <div style={styles.modalTitle}>How did this feel?</div>
-          <p style={{ fontSize: "14px", color: "#64748b", marginBottom: "20px" }}>{stepTitle}</p>
+          <p style={{ fontSize: "14px", color: "#8a7560", marginBottom: "20px" }}>{stepTitle}</p>
           <div style={{ display: "flex", gap: "12px", marginBottom: "20px" }}>
             {FEEDBACK_OPTIONS.map(opt => (
               <button key={opt.value} className="feedback-btn" onClick={() => setFeedback(opt.value)} style={{
-                flex: 1, padding: "16px 12px", borderRadius: "12px", border: feedback === opt.value ? "2px solid #f59e0b" : "2px solid #e2e8f0",
+                flex: 1, padding: "16px 12px", borderRadius: "12px", border: feedback === opt.value ? "2px solid #d4983a" : "2px solid #e8ddd0",
                 background: feedback === opt.value ? "rgba(212,152,58,0.08)" : "#fff", cursor: "pointer", textAlign: "center", transition: "all 0.2s"
               }}>
                 <div style={{ fontSize: "24px", marginBottom: "6px" }}>{opt.emoji}</div>
-                <div style={{ fontSize: "13px", color: "#1e293b", fontWeight: 500 }}>{opt.label}</div>
+                <div style={{ fontSize: "13px", color: "#3d2e1e", fontWeight: 500 }}>{opt.label}</div>
               </button>
             ))}
           </div>
@@ -803,7 +803,7 @@
         <div style={{ ...styles.app, minHeight: "100vh" }}>
           <div className="student-top-bar" style={{ ...styles.topBar }}>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <button onClick={() => { stopMetronome(); onBack(); }} style={{ background: "none", border: "none", color: "#fbbf24", cursor: "pointer", display: "flex", alignItems: "center", minWidth: 44, minHeight: 44, justifyContent: "center" }}><Icons.ArrowLeft /></button>
+              <button onClick={() => { stopMetronome(); onBack(); }} style={{ background: "none", border: "none", color: "#e8c878", cursor: "pointer", display: "flex", alignItems: "center", minWidth: 44, minHeight: 44, justifyContent: "center" }}><Icons.ArrowLeft /></button>
               <span className="logo-text" style={styles.logo}>Groove Machine</span>
             </div>
           </div>
@@ -815,10 +815,10 @@
                 {Array.from({ length: ts.beats }).map((_, i) => (
                   <div key={i} style={{
                     width: "48px", height: "48px", borderRadius: "50%",
-                    background: currentBeat === i ? (i === 0 ? "#f59e0b" : "#d97706") : "rgba(0,0,0,0.04)",
-                    border: currentBeat === i ? "3px solid #fcd34d" : "3px solid rgba(200,150,60,0.15)",
+                    background: currentBeat === i ? (i === 0 ? "#d4983a" : "#c88640") : "rgba(200,150,60,0.1)",
+                    border: currentBeat === i ? "3px solid #e8b450" : "3px solid rgba(200,150,60,0.15)",
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: "16px", fontWeight: 700, color: currentBeat === i ? "#fff" : "#d97706",
+                    fontSize: "16px", fontWeight: 700, color: currentBeat === i ? "#fff" : "#b8863e",
                     transition: "background 0.05s, border 0.05s",
                   }} className={currentBeat === i ? "beat-active" : ""}>
                     {i + 1}
@@ -829,13 +829,13 @@
               {/* Clave visualiser */}
               {clavePattern && CLAVE_PATTERNS[clavePattern] && (
                 <div style={{ marginBottom: "20px" }}>
-                  <div style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", color: "#64748b", marginBottom: "8px" }}>{clavePattern}</div>
+                  <div style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", color: "#8a7560", marginBottom: "8px" }}>{clavePattern}</div>
                   <div style={{ display: "flex", justifyContent: "center", gap: "4px" }}>
                     {CLAVE_PATTERNS[clavePattern].map((hit, i) => (
                       <div key={i} style={{
                         width: "16px", height: "16px", borderRadius: "3px",
-                        background: hit ? (currentSub === i ? "#dc2626" : "rgba(200,104,64,0.4)") : (currentSub === i ? "rgba(0,0,0,0.06)" : "rgba(0,0,0,0.02)"),
-                        border: i % 4 === 0 ? "1px solid rgba(0,0,0,0.08)" : "1px solid transparent",
+                        background: hit ? (currentSub === i ? "#c86840" : "rgba(200,104,64,0.4)") : (currentSub === i ? "rgba(200,150,60,0.2)" : "rgba(200,150,60,0.06)"),
+                        border: i % 4 === 0 ? "1px solid rgba(200,150,60,0.3)" : "1px solid transparent",
                         transition: "background 0.05s",
                       }} />
                     ))}
@@ -844,19 +844,19 @@
               )}
 
               {/* BPM display */}
-              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "48px", fontWeight: 700, color: "#1e293b", marginBottom: "4px" }}>{bpm}</div>
-              <div style={{ fontSize: "12px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "16px" }}>BPM</div>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "48px", fontWeight: 700, color: "#3d2e1e", marginBottom: "4px" }}>{bpm}</div>
+              <div style={{ fontSize: "12px", color: "#a08a70", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "16px" }}>BPM</div>
 
               {/* BPM slider */}
               <input type="range" min="40" max="240" value={bpm} onChange={e => setBpm(parseInt(e.target.value))}
-                style={{ width: "100%", maxWidth: "320px", accentColor: "#f59e0b", marginBottom: "20px" }} />
+                style={{ width: "100%", maxWidth: "320px", accentColor: "#d4983a", marginBottom: "20px" }} />
 
               {/* Play/Stop */}
               <div style={{ marginBottom: "20px" }}>
                 <button onClick={playing ? stopMetronome : startMetronome} style={{
                   ...styles.btnPrimary,
                   padding: "16px 48px", fontSize: "18px", borderRadius: "14px",
-                  background: playing ? "linear-gradient(135deg, #dc2626, #c05050)" : "linear-gradient(135deg, #d97706, #f59e0b)",
+                  background: playing ? "linear-gradient(135deg, #a04040, #c05050)" : "linear-gradient(135deg, #c88640, #d8a040)",
                   minWidth: 160, minHeight: 54,
                 }}>
                   {playing ? <span style={{ display: "flex", alignItems: "center", gap: "8px" }}><Icons.Stop /> Stop</span> : <span style={{ display: "flex", alignItems: "center", gap: "8px" }}><Icons.Play /> Play</span>}
@@ -874,8 +874,8 @@
                 {TIME_SIGNATURES.map(t => (
                   <button key={t.label} onClick={() => setTimeSig(t.label)} style={{
                     ...styles.btnSmall, padding: "8px 18px", minHeight: 44, fontSize: "14px", fontWeight: 600,
-                    background: timeSig === t.label ? "rgba(212,152,58,0.15)" : "rgba(0,0,0,0.02)",
-                    color: timeSig === t.label ? "#b45309" : "#94a3b8",
+                    background: timeSig === t.label ? "rgba(212,152,58,0.15)" : "rgba(200,150,60,0.06)",
+                    color: timeSig === t.label ? "#9a6e30" : "#a08a70",
                     border: timeSig === t.label ? "2px solid rgba(212,152,58,0.4)" : "2px solid transparent",
                     borderRadius: "10px", cursor: "pointer",
                   }}>{t.label}</button>
@@ -889,16 +889,16 @@
               <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                 <button onClick={() => setClavePattern(null)} style={{
                   ...styles.btnSmall, padding: "8px 14px", minHeight: 44, fontSize: "13px",
-                  background: !clavePattern ? "rgba(212,152,58,0.15)" : "rgba(0,0,0,0.02)",
-                  color: !clavePattern ? "#b45309" : "#94a3b8",
+                  background: !clavePattern ? "rgba(212,152,58,0.15)" : "rgba(200,150,60,0.06)",
+                  color: !clavePattern ? "#9a6e30" : "#a08a70",
                   border: !clavePattern ? "2px solid rgba(212,152,58,0.4)" : "2px solid transparent",
                   borderRadius: "10px", cursor: "pointer",
                 }}>None</button>
                 {Object.keys(CLAVE_PATTERNS).map(name => (
                   <button key={name} onClick={() => setClavePattern(name)} style={{
                     ...styles.btnSmall, padding: "8px 14px", minHeight: 44, fontSize: "13px",
-                    background: clavePattern === name ? "rgba(200,104,64,0.15)" : "rgba(0,0,0,0.02)",
-                    color: clavePattern === name ? "#9a3412" : "#94a3b8",
+                    background: clavePattern === name ? "rgba(200,104,64,0.15)" : "rgba(200,150,60,0.06)",
+                    color: clavePattern === name ? "#8a5040" : "#a08a70",
                     border: clavePattern === name ? "2px solid rgba(200,104,64,0.4)" : "2px solid transparent",
                     borderRadius: "10px", cursor: "pointer",
                   }}>{name}</button>
@@ -913,8 +913,8 @@
                 {GROOVE_PRESETS.map(p => (
                   <button key={p.name} onClick={() => applyPreset(p)} style={{
                     ...styles.btnSmall, padding: "8px 18px", minHeight: 44, fontSize: "13px", fontWeight: 500,
-                    background: "rgba(217,119,6,0.08)", color: "#92400e",
-                    border: "1.5px solid rgba(217,119,6,0.2)", borderRadius: "10px", cursor: "pointer",
+                    background: "rgba(90,154,122,0.08)", color: "#3a7a5a",
+                    border: "1.5px solid rgba(90,154,122,0.2)", borderRadius: "10px", cursor: "pointer",
                   }}>{p.name}</button>
                 ))}
               </div>
@@ -1002,8 +1002,8 @@
               return (
                 <div key={k.note} className="piano-white-key" style={{
                   flex: 1, height: "100%",
-                  background: root ? "#f59e0b" : hl ? "#fbbf24" : "#fff",
-                  border: "1px solid #cbd5e1", borderRadius: "0 0 6px 6px",
+                  background: root ? "#d4983a" : hl ? "#e8c878" : "#fff",
+                  border: "1px solid #d0c4b0", borderRadius: "0 0 6px 6px",
                   display: "flex", alignItems: "flex-end", justifyContent: "center",
                   paddingBottom: "6px", fontSize: "10px", fontWeight: 600,
                   color: root ? "#fff" : hl ? "#6a4a20" : "#b0a090",
@@ -1024,7 +1024,7 @@
                 position: "absolute", top: 0,
                 left: `${leftPct}%`,
                 width: `${whiteKeyWidth * 0.6}%`, height: "58%",
-                background: root ? "#dc2626" : hl ? "#d97706" : "#1e293b",
+                background: root ? "#c86840" : hl ? "#b8863e" : "#3d2e1e",
                 borderRadius: "0 0 4px 4px",
                 zIndex: 2, cursor: "default",
                 border: "1px solid #2a1e0e",
@@ -1049,7 +1049,7 @@
         <div style={{ ...styles.app, minHeight: "100vh" }}>
           <div className="student-top-bar" style={styles.topBar}>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <button onClick={onBack} style={{ background: "none", border: "none", color: "#fbbf24", cursor: "pointer", display: "flex", alignItems: "center", minWidth: 44, minHeight: 44, justifyContent: "center" }}><Icons.ArrowLeft /></button>
+              <button onClick={onBack} style={{ background: "none", border: "none", color: "#e8c878", cursor: "pointer", display: "flex", alignItems: "center", minWidth: 44, minHeight: 44, justifyContent: "center" }}><Icons.ArrowLeft /></button>
               <span className="logo-text" style={styles.logo}>Chord Reference</span>
             </div>
           </div>
@@ -1063,7 +1063,7 @@
                   <button key={i} onClick={() => setRootIndex(i)} style={{
                     minWidth: 44, minHeight: 44, borderRadius: "10px", border: "none", cursor: "pointer",
                     fontSize: "14px", fontWeight: 600,
-                    background: rootIndex === i ? "linear-gradient(135deg, #d97706, #f59e0b)" : "rgba(0,0,0,0.03)",
+                    background: rootIndex === i ? "linear-gradient(135deg, #c88640, #d8a040)" : "rgba(200,150,60,0.08)",
                     color: rootIndex === i ? "#fff" : "#6a5040",
                   }}>{n}</button>
                 ))}
@@ -1078,8 +1078,8 @@
                   <button key={i} onClick={() => setChordTypeIndex(i)} style={{
                     minHeight: 40, padding: "6px 14px", borderRadius: "10px", border: "none", cursor: "pointer",
                     fontSize: "13px", fontWeight: 500,
-                    background: chordTypeIndex === i ? "rgba(217,119,6,0.2)" : "rgba(0,0,0,0.02)",
-                    color: chordTypeIndex === i ? "#92400e" : "#64748b",
+                    background: chordTypeIndex === i ? "rgba(90,154,122,0.2)" : "rgba(200,150,60,0.06)",
+                    color: chordTypeIndex === i ? "#3a7a5a" : "#8a7560",
                     borderWidth: "2px", borderStyle: "solid",
                     borderColor: chordTypeIndex === i ? "rgba(90,154,122,0.4)" : "transparent",
                   }}>{ct.name}</button>
@@ -1089,15 +1089,15 @@
 
             {/* Chord display */}
             <div className="student-card" style={{ ...styles.card, textAlign: "center" }}>
-              <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "36px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>{symbol}</div>
+              <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "36px", fontWeight: 700, color: "#3d2e1e", marginBottom: "8px" }}>{symbol}</div>
               <div style={{ fontSize: "16px", color: "#6a5040", marginBottom: "4px" }}>{noteNames.join(" - ")}</div>
               <div style={{ display: "flex", justifyContent: "center", gap: "8px", marginTop: "8px", flexWrap: "wrap" }}>
                 {chordType.labels.map((lbl, i) => (
                   <span key={i} style={{
                     display: "inline-flex", alignItems: "center", justifyContent: "center",
                     width: "36px", height: "36px", borderRadius: "50%",
-                    background: i === 0 ? "#f59e0b" : "rgba(217,119,6,0.15)",
-                    color: i === 0 ? "#fff" : "#92400e",
+                    background: i === 0 ? "#d4983a" : "rgba(90,154,122,0.15)",
+                    color: i === 0 ? "#fff" : "#3a7a5a",
                     fontSize: "12px", fontWeight: 700,
                   }}>{lbl}</span>
                 ))}
@@ -1123,20 +1123,20 @@
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
             <button className="toolbox-card" onClick={onOpenMetronome} style={{
               ...styles.card, cursor: "pointer", textAlign: "center", padding: "32px 20px",
-              border: "2px solid rgba(0,0,0,0.04)", transition: "all 0.2s",
+              border: "2px solid rgba(200,150,60,0.1)", transition: "all 0.2s",
             }}>
               <div style={{ marginBottom: "12px" }}><Icons.Metronome /></div>
-              <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "16px", color: "#1e293b", marginBottom: "4px" }}>Groove Machine</div>
-              <div style={{ fontSize: "12px", color: "#64748b" }}>Metronome with clave patterns</div>
+              <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "16px", color: "#3d2e1e", marginBottom: "4px" }}>Groove Machine</div>
+              <div style={{ fontSize: "12px", color: "#8a7560" }}>Metronome with clave patterns</div>
             </button>
 
             <button className="toolbox-card" onClick={onOpenChords} style={{
               ...styles.card, cursor: "pointer", textAlign: "center", padding: "32px 20px",
-              border: "2px solid rgba(0,0,0,0.04)", transition: "all 0.2s",
+              border: "2px solid rgba(200,150,60,0.1)", transition: "all 0.2s",
             }}>
               <div style={{ marginBottom: "12px" }}><Icons.Piano /></div>
-              <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "16px", color: "#1e293b", marginBottom: "4px" }}>Chord Reference</div>
-              <div style={{ fontSize: "12px", color: "#64748b" }}>Chord symbols and voicings</div>
+              <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "16px", color: "#3d2e1e", marginBottom: "4px" }}>Chord Reference</div>
+              <div style={{ fontSize: "12px", color: "#8a7560" }}>Chord symbols and voicings</div>
             </button>
           </div>
         </div>
@@ -1211,7 +1211,7 @@
         <div style={{ ...styles.app, minHeight: "100vh" }}>
           <div style={styles.topBar}>
             <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1 }}>
-              <button onClick={onBack} style={{ background: "none", border: "none", color: "#fbbf24", cursor: "pointer", display: "flex", alignItems: "center", minWidth: 44, minHeight: 44, justifyContent: "center" }}><Icons.ArrowLeft /></button>
+              <button onClick={onBack} style={{ background: "none", border: "none", color: "#e8c878", cursor: "pointer", display: "flex", alignItems: "center", minWidth: 44, minHeight: 44, justifyContent: "center" }}><Icons.ArrowLeft /></button>
               <span className="logo-text" style={styles.logo}>My <span style={styles.logoAccent}>Woodshed</span> Music</span>
             </div>
             <div className="lesson-toolbar" style={{ display: "flex", gap: "8px", alignItems: "center" }}>
@@ -1221,7 +1221,7 @@
                 </button>
               )}
               {editing && (
-                <button onClick={() => { handleSave(); setEditing(false); }} style={{ ...styles.switchBtn, display: "flex", alignItems: "center", gap: "6px", background: "rgba(16,185,129,0.3)" }}>
+                <button onClick={() => { handleSave(); setEditing(false); }} style={{ ...styles.switchBtn, display: "flex", alignItems: "center", gap: "6px", background: "rgba(90,154,122,0.3)" }}>
                   {saving ? "Saving..." : saved ? "Saved!" : "Done Editing"}
                 </button>
               )}
@@ -1233,7 +1233,7 @@
           </div>
 
           {editing && (
-            <div style={{ background: "#1e293b", padding: "8px 16px", display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center", borderBottom: "1px solid rgba(0,0,0,0.06)", position: "sticky", top: "56px", zIndex: 10 }}>
+            <div style={{ background: "#3d2e1e", padding: "8px 16px", display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center", borderBottom: "1px solid rgba(200,150,60,0.2)", position: "sticky", top: "56px", zIndex: 10 }}>
               {toolbarBtn("B", "bold")}
               {toolbarBtn("I", "italic")}
               {toolbarBtn("H2", "formatBlock", "h2")}
@@ -1275,7 +1275,7 @@
                 contentEditable
                 suppressContentEditableWarning
                 dangerouslySetInnerHTML={{ __html: lessonHtml }}
-                style={{ outline: "none", minHeight: "300px", border: "2px dashed rgba(0,0,0,0.06)", borderRadius: "8px", padding: "24px" }}
+                style={{ outline: "none", minHeight: "300px", border: "2px dashed rgba(200,150,60,0.2)", borderRadius: "8px", padding: "24px" }}
               />
             ) : (
               <div className="lesson-document" dangerouslySetInnerHTML={{ __html: lessonHtml }} />
@@ -1355,7 +1355,7 @@
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                       <div>
                         <div style={styles.cardTitle}>{student.name}</div>
-                        {student.level && <div style={{ fontSize: "13px", color: "#64748b" }}>{student.level}</div>}
+                        {student.level && <div style={{ fontSize: "13px", color: "#8a7560" }}>{student.level}</div>}
                       </div>
                       <button style={styles.btnDanger} onClick={() => handleRemoveStudent(student.id)}><Icons.Trash /></button>
                     </div>
@@ -1363,16 +1363,16 @@
                     {/* PIN display + copy link */}
                     <div style={{
                       marginTop: "12px", padding: "10px 14px", borderRadius: "10px",
-                      background: "rgba(212,152,58,0.06)", border: "1px solid rgba(245,158,11,0.12)",
+                      background: "rgba(212,152,58,0.06)", border: "1px solid rgba(212,152,58,0.12)",
                       display: "flex", alignItems: "center", justifyContent: "space-between",
                     }}>
                       <div>
-                        <div style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", color: "#94a3b8", marginBottom: "2px" }}>Student PIN</div>
-                        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "20px", fontWeight: 700, color: "#f59e0b", letterSpacing: "4px" }}>{student.pin || "------"}</div>
+                        <div style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", color: "#a08a70", marginBottom: "2px" }}>Student PIN</div>
+                        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "20px", fontWeight: 700, color: "#d4983a", letterSpacing: "4px" }}>{student.pin || "------"}</div>
                       </div>
                       <button onClick={() => copyStudentLink(student)} style={{
-                        ...styles.btnSmall, padding: "6px 12px", background: copiedId === student.id ? "rgba(217,119,6,0.15)" : "rgba(0,0,0,0.04)",
-                        color: copiedId === student.id ? "#b45309" : "#b45309",
+                        ...styles.btnSmall, padding: "6px 12px", background: copiedId === student.id ? "rgba(90,154,122,0.15)" : "rgba(200,150,60,0.1)",
+                        color: copiedId === student.id ? "#4a8a6a" : "#9a6e30",
                         border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px", borderRadius: "8px",
                       }}>
                         {copiedId === student.id ? <><Icons.Check /> Copied</> : <><Icons.Copy /> Copy Link</>}
@@ -1381,7 +1381,7 @@
 
                     {latestAssignment && (
                       <div style={{ marginTop: "16px" }}>
-                        <div style={{ fontSize: "12px", color: "#94a3b8" }}>{latestAssignment.weekLabel} -- {completedSteps} of {totalSteps} steps</div>
+                        <div style={{ fontSize: "12px", color: "#a08a70" }}>{latestAssignment.weekLabel} -- {completedSteps} of {totalSteps} steps</div>
                         <div style={styles.progressBar}><div style={styles.progressFill(pct)} /></div>
                         {streak > 0 && <div style={styles.streak}><Icons.Fire /> {streak} steps completed</div>}
                         {latestProgress.length > 0 && (
@@ -1391,7 +1391,7 @@
                               const content = contentLibrary.find(c => c.id === step?.contentId);
                               const fb = FEEDBACK_OPTIONS.find(f => f.value === p.feedback);
                               return (
-                                <div key={i} style={{ fontSize: "12px", color: "#64748b", padding: "4px 0", display: "flex", gap: "6px", alignItems: "center" }}>
+                                <div key={i} style={{ fontSize: "12px", color: "#8a7560", padding: "4px 0", display: "flex", gap: "6px", alignItems: "center" }}>
                                   <span>{fb?.emoji}</span>
                                   <span>{content?.title || step?.content_title || "Step"}</span>
                                   {(p.feedbackNote || p.feedback_note) && <span style={{ fontStyle: "italic" }}>-- "{p.feedbackNote || p.feedback_note}"</span>}
@@ -1403,7 +1403,7 @@
                       </div>
                     )}
                     {!latestAssignment && (
-                      <div style={{ marginTop: "12px", fontSize: "13px", color: "#94a3b8", fontStyle: "italic" }}>No assignments yet</div>
+                      <div style={{ marginTop: "12px", fontSize: "13px", color: "#a08a70", fontStyle: "italic" }}>No assignments yet</div>
                     )}
                   </div>
                 );
@@ -1448,7 +1448,7 @@
       padding: "8px 16px", borderRadius: "10px", border: "1.5px solid rgba(138,90,200,0.3)",
       cursor: "pointer", fontSize: "13px", fontWeight: 500, display: "flex", alignItems: "center", gap: "6px",
       background: "linear-gradient(135deg, rgba(138,90,200,0.08), rgba(90,120,200,0.08))",
-      color: "#d97706", transition: "all 0.2s"
+      color: "#6a4aaa", transition: "all 0.2s"
     };
 
     const aiButtonActiveStyle = {
@@ -1546,9 +1546,9 @@
             <div style={{ marginTop: "16px" }}>
               <div style={styles.card}>
                 <div style={styles.contentTypeIcon}>{result.type}</div>
-                <div style={{ fontSize: "15px", fontWeight: 500, color: "#1e293b", marginBottom: "6px" }}>{result.title}</div>
+                <div style={{ fontSize: "15px", fontWeight: 500, color: "#3d2e1e", marginBottom: "6px" }}>{result.title}</div>
                 <span style={styles.tag(result.track)}>{result.track}</span>
-                <p style={{ fontSize: "13px", color: "#64748b", marginTop: "10px", lineHeight: 1.5 }}>{result.description}</p>
+                <p style={{ fontSize: "13px", color: "#8a7560", marginTop: "10px", lineHeight: 1.5 }}>{result.description}</p>
               </div>
               <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
                 <button style={styles.btnGhost} onClick={() => { setResult(null); }}>Regenerate</button>
@@ -1644,7 +1644,7 @@
               {results.map((r, i) => (
                 <div key={i} style={{ ...styles.card, opacity: r.selected ? 1 : 0.5, cursor: "pointer" }} onClick={() => toggleSelect(i)}>
                   {r.error ? (
-                    <div style={{ color: "#dc2626", fontSize: "13px" }}>Failed: {r.url || r.error}</div>
+                    <div style={{ color: "#a04040", fontSize: "13px" }}>Failed: {r.url || r.error}</div>
                   ) : (
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
@@ -1653,12 +1653,12 @@
                         </div>
                         <div style={{ flex: 1 }}>
                           <div style={styles.contentTypeIcon}>{r.content?.type}</div>
-                          <div style={{ fontSize: "14px", fontWeight: 500, color: "#1e293b" }}>{r.content?.title}</div>
+                          <div style={{ fontSize: "14px", fontWeight: 500, color: "#3d2e1e" }}>{r.content?.title}</div>
                         </div>
                         <span style={styles.tag(r.content?.track)}>{r.content?.track}</span>
                       </div>
-                      <p style={{ fontSize: "12px", color: "#64748b", lineHeight: 1.4, marginLeft: "30px" }}>{r.content?.description}</p>
-                      {r.youtube?.author && <div style={{ fontSize: "11px", color: "#d97706", marginTop: "4px", marginLeft: "30px" }}>by {r.youtube.author}</div>}
+                      <p style={{ fontSize: "12px", color: "#8a7560", lineHeight: 1.4, marginLeft: "30px" }}>{r.content?.description}</p>
+                      {r.youtube?.author && <div style={{ fontSize: "11px", color: "#b8863e", marginTop: "4px", marginLeft: "30px" }}>by {r.youtube.author}</div>}
                     </div>
                   )}
                 </div>
@@ -1721,7 +1721,7 @@
             <span style={{ color: "#5a70ca" }}><AIIcons.Layers /></span>
             <span style={styles.modalTitle}>Bulk Generate Content</span>
           </div>
-          <p style={{ fontSize: "13px", color: "#64748b", marginBottom: "16px" }}>Generate a whole set of exercises or content items at once. AI will create entries for all 12 keys or relevant variations.</p>
+          <p style={{ fontSize: "13px", color: "#8a7560", marginBottom: "16px" }}>Generate a whole set of exercises or content items at once. AI will create entries for all 12 keys or relevant variations.</p>
 
           <div style={styles.formGroup}>
             <label style={styles.label}>Category</label>
@@ -1733,7 +1733,7 @@
               <button key={s} onClick={() => setCategory(s)} style={{
                 padding: "4px 12px", borderRadius: "20px", border: "1px solid rgba(138,90,200,0.2)",
                 background: category === s ? "rgba(138,90,200,0.1)" : "transparent",
-                color: "#d97706", fontSize: "11px", cursor: "pointer"
+                color: "#6a4aaa", fontSize: "11px", cursor: "pointer"
               }}>{s}</button>
             ))}
           </div>
@@ -1754,22 +1754,22 @@
 
           {items.length > 0 && (
             <div style={{ marginTop: "16px", maxHeight: "400px", overflowY: "auto" }}>
-              <div style={{ fontSize: "13px", color: "#d97706", fontWeight: 500, marginBottom: "12px" }}>
+              <div style={{ fontSize: "13px", color: "#6a4aaa", fontWeight: 500, marginBottom: "12px" }}>
                 {items.length} items generated — click to select/deselect
               </div>
               {items.map((item, i) => (
                 <div key={i} onClick={() => toggleSelect(i)} style={{
                   padding: "10px 14px", borderRadius: "10px", marginBottom: "6px", cursor: "pointer",
                   background: item.selected ? "rgba(138,90,200,0.06)" : "#fff",
-                  border: item.selected ? "1.5px solid rgba(138,90,200,0.25)" : "1.5px solid rgba(51,65,85,0.08)",
+                  border: item.selected ? "1.5px solid rgba(138,90,200,0.25)" : "1.5px solid rgba(180,130,60,0.08)",
                   display: "flex", alignItems: "center", gap: "10px"
                 }}>
                   <div style={{ ...styles.stepCheck(item.selected), width: "22px", height: "22px" }}>
                     {item.selected && <Icons.Check />}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: "13px", fontWeight: 500, color: "#1e293b" }}>{item.title}</div>
-                    <div style={{ fontSize: "11px", color: "#64748b" }}>{item.type} · {item.track}</div>
+                    <div style={{ fontSize: "13px", fontWeight: 500, color: "#3d2e1e" }}>{item.title}</div>
+                    <div style={{ fontSize: "11px", color: "#8a7560" }}>{item.type} · {item.track}</div>
                   </div>
                 </div>
               ))}
@@ -1836,7 +1836,7 @@
       return (
         <Modal onClose={onClose}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
-            <span style={{ color: "#d97706" }}><AIIcons.Zap /></span>
+            <span style={{ color: "#5a9a7a" }}><AIIcons.Zap /></span>
             <span style={styles.modalTitle}>AI Practice Path Builder</span>
           </div>
 
@@ -1857,8 +1857,8 @@
             {suggestions.map(s => (
               <button key={s} onClick={() => setBrief(s)} style={{
                 padding: "4px 12px", borderRadius: "20px", border: "1px solid rgba(90,154,122,0.25)",
-                background: brief === s ? "rgba(217,119,6,0.1)" : "transparent",
-                color: "#92400e", fontSize: "11px", cursor: "pointer"
+                background: brief === s ? "rgba(90,154,122,0.1)" : "transparent",
+                color: "#3a7a5a", fontSize: "11px", cursor: "pointer"
               }}>{s}</button>
             ))}
           </div>
@@ -1874,22 +1874,22 @@
 
           {path && (
             <div style={{ marginTop: "16px" }}>
-              <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "18px", color: "#1e293b", marginBottom: "16px" }}>
+              <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "18px", color: "#3d2e1e", marginBottom: "16px" }}>
                 {path.week_label}
               </div>
               {(path.steps || []).map((step, i) => (
-                <div key={i} style={{ padding: "10px 14px", borderRadius: "10px", marginBottom: "6px", background: "#fff", border: "1.5px solid rgba(51,65,85,0.08)", display: "flex", gap: "10px", alignItems: "flex-start" }}>
-                  <div style={{ width: "24px", height: "24px", borderRadius: "50%", background: step.source === "new" ? "rgba(217,119,6,0.1)" : "rgba(217,119,6,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 700, color: step.source === "new" ? "#d97706" : "#92400e", flexShrink: 0, marginTop: "2px" }}>
+                <div key={i} style={{ padding: "10px 14px", borderRadius: "10px", marginBottom: "6px", background: "#fff", border: "1.5px solid rgba(180,130,60,0.08)", display: "flex", gap: "10px", alignItems: "flex-start" }}>
+                  <div style={{ width: "24px", height: "24px", borderRadius: "50%", background: step.source === "new" ? "rgba(138,90,200,0.15)" : "rgba(90,154,122,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 700, color: step.source === "new" ? "#6a4aaa" : "#3a7a5a", flexShrink: 0, marginTop: "2px" }}>
                     {i + 1}
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
                       <span style={styles.contentTypeIcon}>{step.type}</span>
                       <span style={styles.tag(step.track)}>{step.track}</span>
-                      {step.source === "new" && <span style={{ fontSize: "10px", color: "#d97706", fontWeight: 500 }}>NEW</span>}
+                      {step.source === "new" && <span style={{ fontSize: "10px", color: "#6a4aaa", fontWeight: 500 }}>NEW</span>}
                     </div>
-                    <div style={{ fontSize: "13px", fontWeight: 500, color: "#1e293b" }}>{step.title}</div>
-                    {step.notes && <div style={{ fontSize: "12px", color: "#64748b", marginTop: "4px" }}>{step.notes}</div>}
+                    <div style={{ fontSize: "13px", fontWeight: 500, color: "#3d2e1e" }}>{step.title}</div>
+                    {step.notes && <div style={{ fontSize: "12px", color: "#8a7560", marginTop: "4px" }}>{step.notes}</div>}
                   </div>
                 </div>
               ))}
@@ -1927,7 +1927,7 @@
         <button onClick={handleExpand} disabled={loading} title="AI: Expand shorthand into student instructions" style={{
           padding: "4px 10px", borderRadius: "8px", border: "1px solid rgba(138,90,200,0.25)",
           background: loading ? "rgba(138,90,200,0.1)" : "transparent",
-          color: "#d97706", fontSize: "11px", cursor: loading ? "wait" : "pointer",
+          color: "#6a4aaa", fontSize: "11px", cursor: loading ? "wait" : "pointer",
           display: "inline-flex", alignItems: "center", gap: "4px"
         }}>
           <AIIcons.Sparkle /> {loading ? "..." : "Expand"}
@@ -1985,7 +1985,7 @@
 
           {/* AI Action Bar */}
           <div style={{ display: "flex", gap: "8px", marginBottom: "24px", flexWrap: "wrap", padding: "16px", background: "linear-gradient(135deg, rgba(138,90,200,0.04), rgba(90,120,200,0.04))", borderRadius: "12px", border: "1px solid rgba(138,90,200,0.1)" }}>
-            <span style={{ fontSize: "12px", fontWeight: 600, color: "#d97706", display: "flex", alignItems: "center", gap: "4px", marginRight: "8px" }}><AIIcons.Sparkle /> AI Tools:</span>
+            <span style={{ fontSize: "12px", fontWeight: 600, color: "#6a4aaa", display: "flex", alignItems: "center", gap: "4px", marginRight: "8px" }}><AIIcons.Sparkle /> AI Tools:</span>
             <button onClick={() => setShowAIGenerate(true)} style={aiButtonStyle}><AIIcons.Wand /> Describe & Create</button>
             <button onClick={() => setShowYouTubeImport(true)} style={aiButtonStyle}><AIIcons.Youtube /> YouTube Import</button>
             <button onClick={() => setShowBulkGenerate(true)} style={aiButtonStyle}><AIIcons.Layers /> Bulk Generate</button>
@@ -1997,7 +1997,7 @@
             {["All", ...Object.keys(TAG_STYLES)].map(t => (
               <button key={t} onClick={() => setFilter(t)} style={{
                 ...styles.btnSmall, background: filter === t ? "rgba(200,150,60,0.15)" : "rgba(200,150,60,0.05)",
-                color: filter === t ? "#b45309" : "#94a3b8", border: filter === t ? "1px solid rgba(0,0,0,0.08)" : "1px solid transparent",
+                color: filter === t ? "#9a6e30" : "#a08a70", border: filter === t ? "1px solid rgba(200,150,60,0.3)" : "1px solid transparent",
                 padding: "6px 16px", borderRadius: "20px", cursor: "pointer"
               }}>{t}</button>
             ))}
@@ -2015,21 +2015,21 @@
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div style={{ flex: 1 }}>
                       <div style={styles.contentTypeIcon}>{content.type}</div>
-                      <div style={{ fontSize: "15px", fontWeight: 500, color: "#1e293b", marginBottom: "6px" }}>{content.title}</div>
+                      <div style={{ fontSize: "15px", fontWeight: 500, color: "#3d2e1e", marginBottom: "6px" }}>{content.title}</div>
                       <span style={styles.tag(content.track)}>{content.track}</span>
                     </div>
                     <button style={styles.btnDanger} onClick={() => handleRemoveContent(content.id)}><Icons.Trash /></button>
                   </div>
-                  {content.description && <p style={{ fontSize: "13px", color: "#64748b", marginTop: "10px", lineHeight: 1.5 }}>{content.description}</p>}
+                  {content.description && <p style={{ fontSize: "13px", color: "#8a7560", marginTop: "10px", lineHeight: 1.5 }}>{content.description}</p>}
                   {content.url && (
-                    <a href={content.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "12px", color: "#d97706", marginTop: "8px", textDecoration: "none" }}>
+                    <a href={content.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "12px", color: "#b8863e", marginTop: "8px", textDecoration: "none" }}>
                       <Icons.Link /> {content.url.length > 45 ? content.url.slice(0, 45) + "..." : content.url}
                     </a>
                   )}
                   <div style={{ display: "flex", gap: "8px", marginTop: "12px", flexWrap: "wrap", alignItems: "center" }}>
                     <GenerateLessonButton content={content} token={token} onLessonGenerated={(id, html) => { onViewLesson(id, html); onRefreshContent(); }} />
                     {content.lesson_content && (
-                      <button onClick={() => onViewLesson(content.id, content.lesson_content)} style={{ fontSize: "12px", padding: "4px 10px", background: "rgba(217,119,6,0.1)", color: "#d97706", border: "1px solid rgba(217,119,6,0.2)", borderRadius: "6px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>
+                      <button onClick={() => onViewLesson(content.id, content.lesson_content)} style={{ fontSize: "12px", padding: "4px 10px", background: "rgba(90,154,122,0.1)", color: "#5a9a7a", border: "1px solid rgba(90,154,122,0.2)", borderRadius: "6px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                         View Lesson
                       </button>
@@ -2143,18 +2143,18 @@
 
                       return (
                         <div key={step.id} style={styles.stepItem(completed)}>
-                          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "12px", color: "#d97706", width: "24px", marginTop: "4px" }}>{i + 1}.</span>
+                          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "12px", color: "#b8863e", width: "24px", marginTop: "4px" }}>{i + 1}.</span>
                           <div style={styles.stepCheck(completed)}>
                             {completed && <Icons.Check />}
                           </div>
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: "14px", color: "#1e293b", fontWeight: 500 }}>{content?.title || "Unknown content"}</div>
-                            {step.notes && <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>{step.notes}</div>}
+                            <div style={{ fontSize: "14px", color: "#3d2e1e", fontWeight: 500 }}>{content?.title || "Unknown content"}</div>
+                            {step.notes && <div style={{ fontSize: "12px", color: "#8a7560", marginTop: "2px" }}>{step.notes}</div>}
                             <div style={{ display: "flex", gap: "6px", marginTop: "4px", alignItems: "center" }}>
                               {content && <span style={styles.tag(content.track)}>{content.track}</span>}
                               {content && <span style={styles.contentTypeIcon}>{content.type}</span>}
-                              {fb && <span style={{ fontSize: "12px", color: "#64748b" }}>{fb.emoji} {fb.label}</span>}
-                              {(stepProgress?.feedbackNote || stepProgress?.feedback_note) && <span style={{ fontSize: "12px", color: "#64748b", fontStyle: "italic" }}>-- "{stepProgress.feedbackNote || stepProgress.feedback_note}"</span>}
+                              {fb && <span style={{ fontSize: "12px", color: "#8a7560" }}>{fb.emoji} {fb.label}</span>}
+                              {(stepProgress?.feedbackNote || stepProgress?.feedback_note) && <span style={{ fontSize: "12px", color: "#8a7560", fontStyle: "italic" }}>-- "{stepProgress.feedbackNote || stepProgress.feedback_note}"</span>}
                             </div>
                           </div>
                         </div>
@@ -2279,7 +2279,7 @@
         <div style={{ ...styles.app, minHeight: "100vh" }}>
           <div className="student-top-bar" style={{ ...styles.topBar, justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              {onBack && <button onClick={onBack} style={{ background: "none", border: "none", color: "#fbbf24", cursor: "pointer", display: "flex", alignItems: "center", minWidth: 44, minHeight: 44, justifyContent: "center" }}><Icons.ArrowLeft /></button>}
+              {onBack && <button onClick={onBack} style={{ background: "none", border: "none", color: "#e8c878", cursor: "pointer", display: "flex", alignItems: "center", minWidth: 44, minHeight: 44, justifyContent: "center" }}><Icons.ArrowLeft /></button>}
               <span className="logo-text" style={styles.logo}>My <span style={styles.logoAccent}>Woodshed</span> Music</span>
             </div>
           </div>
@@ -2327,7 +2327,7 @@
         <div style={{ ...styles.app, minHeight: "100vh" }}>
           <div className="student-top-bar" style={{ ...styles.topBar, justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              {onBack && <button onClick={onBack} style={{ background: "none", border: "none", color: "#fbbf24", cursor: "pointer", display: "flex", alignItems: "center", minWidth: 44, minHeight: 44, justifyContent: "center" }}><Icons.ArrowLeft /></button>}
+              {onBack && <button onClick={onBack} style={{ background: "none", border: "none", color: "#e8c878", cursor: "pointer", display: "flex", alignItems: "center", minWidth: 44, minHeight: 44, justifyContent: "center" }}><Icons.ArrowLeft /></button>}
               <span className="logo-text" style={styles.logo}>My <span style={styles.logoAccent}>Woodshed</span> Music</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -2345,16 +2345,16 @@
               <div className="student-container" style={styles.container}>
                 <ErrorBanner message={error} onDismiss={() => setError("")} />
 
-                <div className="student-card" style={{ ...styles.card, background: "linear-gradient(135deg, rgba(0,0,0,0.02), rgba(217,119,6,0.04))", border: "1px solid rgba(0,0,0,0.04)" }}>
+                <div className="student-card" style={{ ...styles.card, background: "linear-gradient(135deg, rgba(228,180,60,0.06), rgba(90,154,122,0.04))", border: "1px solid rgba(200,150,60,0.1)" }}>
                   <h1 className="student-page-title" style={{ ...styles.pageTitle, fontSize: "24px" }}>
                     {allDone && !viewingPast ? "Week complete! Nice work." : `Welcome back, ${studentName.split(" ")[0]}`}
                   </h1>
                   {activeAssignment && !allDone && (
-                    <p style={{ fontSize: "14px", color: "#64748b", marginTop: "4px" }}>{activeAssignment.weekLabel} -- {completedSteps} of {totalSteps} steps done. Keep going!</p>
+                    <p style={{ fontSize: "14px", color: "#8a7560", marginTop: "4px" }}>{activeAssignment.weekLabel} -- {completedSteps} of {totalSteps} steps done. Keep going!</p>
                   )}
                   <div style={{ display: "flex", gap: "12px", marginTop: "12px", flexWrap: "wrap" }}>
                     {totalCompleted > 0 && <div style={styles.streak}><Icons.Fire /> {totalCompleted} steps completed total</div>}
-                    {pct === 100 && !viewingPast && <div style={{ ...styles.streak, background: "rgba(217,119,6,0.1)", color: "#b45309" }}><Icons.Check /> All done this week!</div>}
+                    {pct === 100 && !viewingPast && <div style={{ ...styles.streak, background: "rgba(90,154,122,0.12)", color: "#4a8a6a" }}><Icons.Check /> All done this week!</div>}
                   </div>
                   {activeAssignment && (
                     <div style={{ ...styles.progressBar, marginTop: "16px" }}><div style={styles.progressFill(pct)} /></div>
@@ -2363,8 +2363,8 @@
 
                 {allDone && !viewingPast && assignments.length > 1 && (
                   <div className="student-card" style={{ ...styles.card, textAlign: "center", padding: "32px" }}>
-                    <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "20px", color: "#1e293b", marginBottom: "8px" }}>Want to revisit something?</div>
-                    <p style={{ fontSize: "14px", color: "#64748b", marginBottom: "20px" }}>You can go back to previous weeks and work on anything you'd like to polish.</p>
+                    <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "20px", color: "#3d2e1e", marginBottom: "8px" }}>Want to revisit something?</div>
+                    <p style={{ fontSize: "14px", color: "#8a7560", marginBottom: "20px" }}>You can go back to previous weeks and work on anything you'd like to polish.</p>
                     <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
                       {assignments.slice(1).map(a => (
                         <button key={a.id} onClick={() => { setViewingPast(true); setPastAssignmentId(a.id); }} style={styles.btnSecondary}>{a.weekLabel}</button>
@@ -2403,7 +2403,7 @@
                           marginLeft: isNext ? "-12px" : "0",
                           marginRight: isNext ? "-12px" : "0",
                         }}>
-                          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "12px", color: "#d97706", width: "24px", marginTop: "4px" }}>{i + 1}.</span>
+                          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "12px", color: "#b8863e", width: "24px", marginTop: "4px" }}>{i + 1}.</span>
                           <div
                             className="student-step-check"
                             style={styles.stepCheck(completed)}
@@ -2413,23 +2413,23 @@
                           </div>
                           <div style={{ flex: 1 }}>
                             <div style={styles.contentTypeIcon}>{content?.type || "Practice"}</div>
-                            <div className="student-step-title" style={{ fontSize: "15px", color: "#1e293b", fontWeight: 500 }}>{content?.title || "Untitled"}</div>
+                            <div className="student-step-title" style={{ fontSize: "15px", color: "#3d2e1e", fontWeight: 500 }}>{content?.title || "Untitled"}</div>
                             {step.notes && <div style={{ fontSize: "13px", color: "#5a4a38", marginTop: "4px", lineHeight: 1.5 }}>{step.notes}</div>}
-                            {content?.description && <div style={{ fontSize: "13px", color: "#64748b", marginTop: "4px", lineHeight: 1.5 }}>{content.description}</div>}
+                            {content?.description && <div style={{ fontSize: "13px", color: "#8a7560", marginTop: "4px", lineHeight: 1.5 }}>{content.description}</div>}
                             {content?.url && (
-                              <a href={content.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "12px", color: "#d97706", marginTop: "6px", textDecoration: "none" }}>
+                              <a href={content.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "12px", color: "#b8863e", marginTop: "6px", textDecoration: "none" }}>
                                 <Icons.Link /> Open resource
                               </a>
                             )}
                             {(content?.lesson_content) && (
-                              <button onClick={() => setViewingStudentLesson({ html: content.lesson_content, title: content.title, track: content.track, type: content.type })} style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "12px", color: "#d97706", background: "rgba(217,119,6,0.08)", border: "1px solid rgba(217,119,6,0.15)", borderRadius: "6px", padding: "5px 10px", cursor: "pointer", marginTop: "6px" }}>
+                              <button onClick={() => setViewingStudentLesson({ html: content.lesson_content, title: content.title, track: content.track, type: content.type })} style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "12px", color: "#5a9a7a", background: "rgba(90,154,122,0.08)", border: "1px solid rgba(90,154,122,0.15)", borderRadius: "6px", padding: "5px 10px", cursor: "pointer", marginTop: "6px" }}>
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                                 View Full Lesson
                               </button>
                             )}
                             <div style={{ display: "flex", gap: "6px", marginTop: "6px", alignItems: "center" }}>
                               {content && <span style={styles.tag(content.track)}>{content.track}</span>}
-                              {fb && <span style={{ fontSize: "12px", color: "#64748b" }}>{fb.emoji} {fb.label}</span>}
+                              {fb && <span style={{ fontSize: "12px", color: "#8a7560" }}>{fb.emoji} {fb.label}</span>}
                             </div>
                             {isNext && !completed && (
                               <button className="student-mark-complete" onClick={() => handleComplete(step.id)} style={{ ...styles.btnPrimary, marginTop: "12px", fontSize: "13px", padding: "8px 20px" }}>
@@ -2459,14 +2459,14 @@
           {/* Mobile bottom navigation */}
           <div className="mobile-bottom-nav" style={{
             position: "fixed", bottom: 0, left: 0, right: 0,
-            background: "#1e293b", padding: "0",
+            background: "#3d2e1e", padding: "0",
             boxShadow: "0 -2px 12px rgba(30,20,10,0.15)", zIndex: 100,
             justifyContent: "space-around", alignItems: "stretch",
           }}>
             <button onClick={() => setActiveTab("practice")} style={{
               flex: 1, padding: "10px 0", border: "none", cursor: "pointer",
               background: "transparent", display: "flex", flexDirection: "column", alignItems: "center", gap: "2px",
-              color: activeTab === "practice" ? "#fbbf24" : "rgba(255,255,255,0.4)",
+              color: activeTab === "practice" ? "#e8c878" : "rgba(255,255,255,0.4)",
               minHeight: 56,
             }}>
               <Icons.Music />
@@ -2475,7 +2475,7 @@
             <button onClick={() => setActiveTab("toolbox")} style={{
               flex: 1, padding: "10px 0", border: "none", cursor: "pointer",
               background: "transparent", display: "flex", flexDirection: "column", alignItems: "center", gap: "2px",
-              color: activeTab === "toolbox" ? "#fbbf24" : "rgba(255,255,255,0.4)",
+              color: activeTab === "toolbox" ? "#e8c878" : "rgba(255,255,255,0.4)",
               minHeight: 56,
             }}>
               <Icons.Wrench />
@@ -2486,7 +2486,7 @@
           {/* Desktop toolbox tab bar (visible above 768px, inline in the layout) */}
           <div style={{
             position: "fixed", bottom: 0, left: 0, right: 0,
-            background: "#1e293b", padding: "0",
+            background: "#3d2e1e", padding: "0",
             boxShadow: "0 -2px 12px rgba(30,20,10,0.15)", zIndex: 99,
             display: "flex", justifyContent: "center", alignItems: "stretch",
           }} className="mobile-bottom-nav">
@@ -2501,8 +2501,8 @@
             }}>
               <button onClick={() => setActiveTab("practice")} style={{
                 ...styles.btnSmall, padding: "10px 20px", borderRadius: "24px",
-                background: activeTab === "practice" ? "#1e293b" : "rgba(51,65,85,0.06)",
-                color: activeTab === "practice" ? "#fbbf24" : "#64748b",
+                background: activeTab === "practice" ? "#3d2e1e" : "rgba(60,40,20,0.08)",
+                color: activeTab === "practice" ? "#e8c878" : "#8a7560",
                 border: "1px solid rgba(60,40,20,0.1)", cursor: "pointer",
                 boxShadow: "0 2px 12px rgba(30,20,10,0.1)",
                 display: "flex", alignItems: "center", gap: "6px", fontSize: "13px",
@@ -2511,8 +2511,8 @@
               </button>
               <button onClick={() => setActiveTab("toolbox")} style={{
                 ...styles.btnSmall, padding: "10px 20px", borderRadius: "24px",
-                background: activeTab === "toolbox" ? "#1e293b" : "rgba(51,65,85,0.06)",
-                color: activeTab === "toolbox" ? "#fbbf24" : "#64748b",
+                background: activeTab === "toolbox" ? "#3d2e1e" : "rgba(60,40,20,0.08)",
+                color: activeTab === "toolbox" ? "#e8c878" : "#8a7560",
                 border: "1px solid rgba(60,40,20,0.1)", cursor: "pointer",
                 boxShadow: "0 2px 12px rgba(30,20,10,0.1)",
                 display: "flex", alignItems: "center", gap: "6px", fontSize: "13px",
@@ -2763,7 +2763,7 @@
                     style={{ ...styles.switchBtn, appearance: "none", paddingRight: "28px", background: "transparent" }}
                   >
                     <option value="" disabled>Student View</option>
-                    {students.map(s => <option key={s.id} value={s.id} style={{ color: "#1e293b" }}>View as {s.name}</option>)}
+                    {students.map(s => <option key={s.id} value={s.id} style={{ color: "#3d2e1e" }}>View as {s.name}</option>)}
                   </select>
                 </div>
               )}
