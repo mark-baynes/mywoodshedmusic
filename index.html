@@ -1147,7 +1147,66 @@
     // LESSON VIEWER (full-page lesson document)
     // ============================================================
 
-    function LessonViewer({ lessonHtml, title, track, type, onBack }) {
+    function LessonViewer({ lessonHtml, title, track, type, onBack, contentId, token, onSave, canEdit }) {
+      const [editing, setEditing] = useState(false);
+      const [saving, setSaving] = useState(false);
+      const [saved, setSaved] = useState(false);
+      const editorRef = useRef(null);
+      const fileInputRef = useRef(null);
+
+      const handleImageUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const formData = new FormData();
+        formData.append('image', file);
+        try {
+          const res = await fetch(API_BASE + 'upload.php', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token },
+            body: formData
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Upload failed');
+          execCmd('insertHTML', '<img src="' + data.url + '" style="max-width:100%;height:auto;border-radius:8px;margin:12px 0;" />');
+        } catch (err) {
+          alert('Image upload failed: ' + err.message);
+        }
+        e.target.value = '';
+      };
+
+      const execCmd = (cmd, value) => {
+        document.execCommand(cmd, false, value || null);
+        editorRef.current && editorRef.current.focus();
+      };
+
+      const handleSave = async () => {
+        if (!editorRef.current || !contentId) return;
+        setSaving(true);
+        try {
+          const html = editorRef.current.innerHTML;
+          await apiFetch("content.php?id=" + contentId, {
+            method: "PUT",
+            body: JSON.stringify({ lesson_content: html })
+          }, token);
+          if (onSave) onSave(contentId, html);
+          setSaved(true);
+          setTimeout(() => setSaved(false), 2000);
+        } catch (err) {
+          alert("Save failed: " + err.message);
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      const toolbarBtn = (label, cmd, value) => (
+        <button
+          key={cmd + (value || "")}
+          onMouseDown={e => { e.preventDefault(); execCmd(cmd, value); }}
+          style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", borderRadius: "4px", padding: "4px 8px", cursor: "pointer", fontSize: "12px", fontWeight: 600, minWidth: "28px" }}
+          title={label}
+        >{label}</button>
+      );
+
       return (
         <div style={{ ...styles.app, minHeight: "100vh" }}>
           <div style={styles.topBar}>
@@ -1155,13 +1214,52 @@
               <button onClick={onBack} style={{ background: "none", border: "none", color: "#e8c878", cursor: "pointer", display: "flex", alignItems: "center", minWidth: 44, minHeight: 44, justifyContent: "center" }}><Icons.ArrowLeft /></button>
               <span className="logo-text" style={styles.logo}>My <span style={styles.logoAccent}>Woodshed</span> Music</span>
             </div>
-            <div className="lesson-toolbar" style={{ display: "flex", gap: "8px" }}>
+            <div className="lesson-toolbar" style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              {canEdit && !editing && (
+                <button onClick={() => setEditing(true)} style={{ ...styles.switchBtn, display: "flex", alignItems: "center", gap: "6px" }}>
+                  <Icons.Edit /> Edit
+                </button>
+              )}
+              {editing && (
+                <button onClick={() => { handleSave(); setEditing(false); }} style={{ ...styles.switchBtn, display: "flex", alignItems: "center", gap: "6px", background: "rgba(90,154,122,0.3)" }}>
+                  {saving ? "Saving..." : saved ? "Saved!" : "Done Editing"}
+                </button>
+              )}
               <button onClick={() => window.print()} style={{ ...styles.switchBtn, display: "flex", alignItems: "center", gap: "6px" }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
                 Print
               </button>
             </div>
           </div>
+
+          {editing && (
+            <div style={{ background: "#3d2e1e", padding: "8px 16px", display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center", borderBottom: "1px solid rgba(200,150,60,0.2)", position: "sticky", top: "56px", zIndex: 10 }}>
+              {toolbarBtn("B", "bold")}
+              {toolbarBtn("I", "italic")}
+              {toolbarBtn("H2", "formatBlock", "h2")}
+              {toolbarBtn("H3", "formatBlock", "h3")}
+              {toolbarBtn("P", "formatBlock", "p")}
+              {toolbarBtn("OL", "insertOrderedList")}
+              {toolbarBtn("UL", "insertUnorderedList")}
+              <span style={{ width: "1px", height: "20px", background: "rgba(255,255,255,0.2)", margin: "0 4px" }} />
+              {toolbarBtn("Tip Box", "insertHTML", "<div class=\"piano-tip\">Tip: </div>")}
+              {toolbarBtn("Practice Box", "insertHTML", "<div class=\"practice-box\"><h3>Practice Exercise</h3><p>Instructions here...</p></div>")}
+              <span style={{ width: "1px", height: "20px", background: "rgba(255,255,255,0.2)", margin: "0 4px" }} />
+              {toolbarBtn("Undo", "undo")}
+              {toolbarBtn("Redo", "redo")}
+              <span style={{ width: "1px", height: "20px", background: "rgba(255,255,255,0.2)", margin: "0 4px" }} />
+              <button
+                onMouseDown={e => { e.preventDefault(); fileInputRef.current && fileInputRef.current.click(); }}
+                style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", borderRadius: "4px", padding: "4px 8px", cursor: "pointer", fontSize: "12px", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px" }}
+                title="Insert Image"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                Image
+              </button>
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} style={{ display: "none" }} />
+            </div>
+          )}
+
           <div style={{ ...styles.container, maxWidth: "860px", padding: "32px 24px" }}>
             <div style={{ marginBottom: "24px" }}>
               <h1 style={{ ...styles.pageTitle, fontSize: "28px", marginBottom: "8px" }}>{title}</h1>
@@ -1170,7 +1268,18 @@
                 {type && <span style={{ ...styles.contentTypeIcon, fontSize: "12px" }}>{type}</span>}
               </div>
             </div>
-            <div className="lesson-document" dangerouslySetInnerHTML={{ __html: lessonHtml }} />
+            {editing ? (
+              <div
+                ref={editorRef}
+                className="lesson-document"
+                contentEditable
+                suppressContentEditableWarning
+                dangerouslySetInnerHTML={{ __html: lessonHtml }}
+                style={{ outline: "none", minHeight: "300px", border: "2px dashed rgba(200,150,60,0.2)", borderRadius: "8px", padding: "24px" }}
+              />
+            ) : (
+              <div className="lesson-document" dangerouslySetInnerHTML={{ __html: lessonHtml }} />
+            )}
           </div>
         </div>
       );
@@ -2151,6 +2260,7 @@
             title={viewingStudentLesson.title || "Lesson"}
             track={viewingStudentLesson.track}
             type={viewingStudentLesson.type}
+            canEdit={false}
             onBack={() => setViewingStudentLesson(null)}
           />
         );
@@ -2597,6 +2707,10 @@
             title={viewingLesson.content?.title || "Lesson"}
             track={viewingLesson.content?.track}
             type={viewingLesson.content?.type}
+            contentId={viewingLesson.id}
+            token={token}
+            canEdit={true}
+            onSave={(id, html) => { setViewingLesson(prev => ({ ...prev, html })); refreshContent(); }}
             onBack={() => { setViewingLesson(null); }}
           />
         );
