@@ -332,6 +332,69 @@ Generate between 6 and 24 items depending on what makes sense for the category."
         jsonResponse($parsed);
         break;
 
+
+    // ─── Generate a full lesson document from brief description ───
+    case 'generate_lesson':
+        $contentId = trim($body['content_id'] ?? '');
+        $brief = trim($body['brief'] ?? '');
+        $title = trim($body['title'] ?? '');
+        $track = trim($body['track'] ?? '');
+        $type = trim($body['type'] ?? '');
+        $description = trim($body['description'] ?? '');
+
+        if (!$brief && !$description) {
+            jsonResponse(['error' => 'Brief or description required'], 400);
+        }
+
+        $lessonPrompt = "You are creating a complete, rich lesson document for a piano student. The teacher has given you a brief description, and you need to create a full, well-structured lesson page.
+
+The teacher wrote: \"{$brief}{$description}\"
+" . ($title ? "Content title: \"$title\"\n" : "") . ($track ? "Track: $track\n" : "") . ($type ? "Type: $type\n" : "") . "
+
+Generate a comprehensive lesson document in HTML format. The HTML should be self-contained content (no <html>, <head>, or <body> tags — just the inner content divs).
+
+Structure the lesson with these sections as appropriate:
+1. **Overview** — What this lesson covers and why it matters
+2. **Key Concepts** — Theory or background the student needs
+3. **Step-by-Step Instructions** — Detailed practice steps, numbered
+4. **Tips & Common Mistakes** — Practical advice
+5. **Goals** — What the student should aim for / how they know they\'ve got it
+6. **Going Further** — Optional next steps or variations
+
+Style guidelines:
+- Use clear, encouraging language suitable for the student\'s level
+- Be specific about notes, keys, fingerings, tempos where relevant
+- Include musical terminology with brief explanations
+- Use <h2> for section titles, <h3> for subsections
+- Use <ol> for ordered steps, <ul> for tips/lists
+- Use <strong> for key terms
+- Use <div class=\"piano-tip\"> for callout boxes with tips
+- Use <div class=\"practice-box\"> for specific practice exercises
+- Keep it thorough but not overwhelming — aim for 400-800 words
+
+Respond with a JSON object:
+{
+  \"lesson_html\": \"the complete HTML content\",
+  \"summary\": \"one-line summary of what the lesson covers\"
+}";
+
+        $result = callClaude($MUSIC_SYSTEM . "\n\nFor this request, generate HTML content for a lesson document. Still respond in valid JSON.", $lessonPrompt, 4096);
+        $parsed = json_decode($result, true);
+        if (!$parsed) {
+            preg_match('/\{.*\}/s', $result, $m);
+            $parsed = json_decode($m[0] ?? '{}', true);
+        }
+
+        // If we have a content_id, save the lesson to the database
+        if ($contentId && isset($parsed['lesson_html'])) {
+            $db = getDB();
+            $stmt = $db->prepare('UPDATE content SET lesson_content = ? WHERE id = ? AND teacher_id = ?');
+            $stmt->execute([$parsed['lesson_html'], $contentId, $teacherId]);
+        }
+
+        jsonResponse(['lesson' => $parsed]);
+        break;
+
     default:
-        jsonResponse(['error' => 'Invalid action. Use: generate_content, expand_shorthand, youtube_import, youtube_bulk_import, build_path, bulk_generate'], 400);
+        jsonResponse(['error' => 'Invalid action. Use: generate_content, expand_shorthand, youtube_import, youtube_bulk_import, build_path, bulk_generate, generate_lesson'], 400);
 }

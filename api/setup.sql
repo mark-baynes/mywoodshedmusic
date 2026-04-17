@@ -34,6 +34,7 @@ CREATE TABLE content (
     track ENUM('Jazz','Contemporary','Foundation','Crossover') DEFAULT 'Foundation',
     description TEXT,
     url VARCHAR(2000) DEFAULT '',
+    lesson_content MEDIUMTEXT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE
 );

@@ -38,7 +38,7 @@ function loadSteps($db, $assignmentId) {
     $stmt = $db->prepare('
         SELECT s.id, s.content_id as contentId, s.notes, s.step_order as `order`,
                c.title as content_title, c.type as content_type, c.track as content_track,
-               c.description as content_description, c.url as content_url
+               c.description as content_description, c.url as content_url, c.lesson_content as content_lesson_content
         FROM assignment_steps s
         LEFT JOIN content c ON c.id = s.content_id
         WHERE s.assignment_id = ?
