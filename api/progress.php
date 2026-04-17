@@ -41,6 +41,7 @@ switch ($method) {
             $r['stepId'] = $r['step_id'];
             $r['feedbackNote'] = $r['feedback_note'];
             $r['completedAt'] = $r['completed_at'];
+            $r['practiceSeconds'] = (int)($r['practice_seconds'] ?? 0);
         }
         jsonResponse($rows);
         break;
@@ -56,17 +57,40 @@ switch ($method) {
         }
 
         $stmt = $db->prepare('
-            INSERT INTO progress (student_id, assignment_id, step_id, completed, feedback, feedback_note)
-            VALUES (?, ?, ?, 1, ?, ?)
-            ON DUPLICATE KEY UPDATE completed = 1, feedback = VALUES(feedback), feedback_note = VALUES(feedback_note), completed_at = CURRENT_TIMESTAMP
+            INSERT INTO progress (student_id, assignment_id, step_id, completed, feedback, feedback_note, practice_seconds)
+            VALUES (?, ?, ?, 1, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE completed = 1, feedback = VALUES(feedback), feedback_note = VALUES(feedback_note), practice_seconds = GREATEST(practice_seconds, VALUES(practice_seconds)), completed_at = CURRENT_TIMESTAMP
         ');
         $stmt->execute([
             $studentId, $assignmentId, $stepId,
             $body['feedback'] ?? '',
-            $body['feedbackNote'] ?? ''
+            $body['feedbackNote'] ?? '',
+            intval($body['practiceSeconds'] ?? 0)
         ]);
 
         jsonResponse(['success' => true, 'studentId' => $studentId, 'assignmentId' => $assignmentId, 'stepId' => $stepId]);
+        break;
+
+
+    case 'PUT':
+        $body = getBody();
+        $studentId = $body['studentId'] ?? '';
+        $assignmentId = $body['assignmentId'] ?? '';
+        $stepId = $body['stepId'] ?? '';
+        $practiceSeconds = intval($body['practiceSeconds'] ?? 0);
+
+        if (!$studentId || !$assignmentId || !$stepId) {
+            jsonResponse(['error' => 'studentId, assignmentId, and stepId required'], 400);
+        }
+
+        $stmt = $db->prepare('
+            INSERT INTO progress (student_id, assignment_id, step_id, completed, practice_seconds)
+            VALUES (?, ?, ?, 0, ?)
+            ON DUPLICATE KEY UPDATE practice_seconds = GREATEST(practice_seconds, VALUES(practice_seconds))
+        ');
+        $stmt->execute([$studentId, $assignmentId, $stepId, $practiceSeconds]);
+
+        jsonResponse(['success' => true, 'practiceSeconds' => $practiceSeconds]);
         break;
 
     default:

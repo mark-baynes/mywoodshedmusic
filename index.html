@@ -1,7 +1,10 @@
+<!-- Copyright (c) 2025 Boing Media Ltd. Created by Dr Mark Baynes. All rights reserved. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="author" content="Dr Mark Baynes">
+  <meta name="copyright" content="Copyright 2025 Boing Media Ltd. Created by Dr Mark Baynes. All rights reserved.">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>My Woodshed Music</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -53,6 +56,10 @@
     /* Piano key hover */
     .piano-white-key:hover { background: #f0ebe0 !important; }
     .piano-black-key:hover { background: #2a2a2a !important; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
   </style>
 </head>
 <body>
@@ -86,6 +93,189 @@
     function getUrlParam(name) {
       const params = new URLSearchParams(window.location.search);
       return params.get(name);
+    }
+
+
+    // ============================================================
+    // YOUTUBE EMBED HELPER
+    // ============================================================
+
+    function YouTubeEmbed({ url }) {
+      const match = url && url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
+      if (!match) return null;
+      const videoId = match[1];
+      return (
+        <div style={{ position: "relative", paddingBottom: "56.25%", height: 0, overflow: "hidden", borderRadius: "10px", marginTop: "10px", background: "#0f172a" }}>
+          <iframe
+            src={`https://www.youtube.com/embed/${videoId}`}
+            style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+      );
+    }
+
+
+    // ============================================================
+    // PRACTICE TIMER
+    // ============================================================
+
+    function PracticeTimer({ stepId, assignmentId, studentId, token, initialSeconds, onTick }) {
+      const [seconds, setSeconds] = useState(initialSeconds || 0);
+      const [running, setRunning] = useState(false);
+      const intervalRef = useRef(null);
+
+      useEffect(() => {
+        if (running) {
+          intervalRef.current = setInterval(() => setSeconds(s => { const next = s + 1; onTick && onTick(next); return next; }), 1000);
+        } else {
+          clearInterval(intervalRef.current);
+        }
+        return () => clearInterval(intervalRef.current);
+      }, [running]);
+
+      // Auto-save every 30 seconds while running
+      useEffect(() => {
+        if (running && seconds > 0 && seconds % 30 === 0) {
+          apiFetch('progress.php', {
+            method: 'PUT',
+            body: JSON.stringify({ studentId, assignmentId, stepId, practiceSeconds: seconds })
+          }, token).catch(() => {});
+        }
+      }, [seconds, running]);
+
+      const formatTime = (s) => {
+        const m = Math.floor(s / 60);
+        const sec = s % 60;
+        return `${m}:${sec.toString().padStart(2, '0')}`;
+      };
+
+      const timerStyle = {
+        display: "inline-flex", alignItems: "center", gap: "8px",
+        background: running ? "rgba(217,119,6,0.1)" : "rgba(0,0,0,0.03)",
+        borderRadius: "20px", padding: "4px 12px", marginTop: "8px", fontSize: "13px"
+      };
+
+      return (
+        <div style={timerStyle}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={running ? "#d97706" : "#94a3b8"} strokeWidth="2" strokeLinecap="round">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, color: running ? "#d97706" : "#64748b", minWidth: "40px" }}>
+            {formatTime(seconds)}
+          </span>
+          <button onClick={() => setRunning(!running)} style={{
+            background: running ? "rgba(217,119,6,0.15)" : "rgba(0,0,0,0.05)",
+            border: "none", borderRadius: "12px", padding: "2px 10px", cursor: "pointer",
+            fontSize: "11px", fontWeight: 600, color: running ? "#b45309" : "#64748b"
+          }}>
+            {running ? "Pause" : seconds > 0 ? "Resume" : "Start"}
+          </button>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // AUDIO RECORDER
+    // ============================================================
+
+    function AudioRecorder({ stepId, assignmentId, studentId, token, existingUrl }) {
+      const [recording, setRecording] = useState(false);
+      const [audioUrl, setAudioUrl] = useState(existingUrl || null);
+      const [uploading, setUploading] = useState(false);
+      const [error, setError] = useState("");
+      const mediaRecorderRef = useRef(null);
+      const chunksRef = useRef([]);
+      const streamRef = useRef(null);
+
+      const startRecording = async () => {
+        setError("");
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          streamRef.current = stream;
+          const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/mp4";
+          const recorder = new MediaRecorder(stream, { mimeType });
+          chunksRef.current = [];
+          recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+          recorder.onstop = async () => {
+            stream.getTracks().forEach(t => t.stop());
+            const blob = new Blob(chunksRef.current, { type: mimeType });
+            await uploadAudio(blob, mimeType);
+          };
+          mediaRecorderRef.current = recorder;
+          recorder.start();
+          setRecording(true);
+        } catch (err) {
+          setError("Microphone access denied. Please allow microphone access and try again.");
+        }
+      };
+
+      const stopRecording = () => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+          mediaRecorderRef.current.stop();
+          setRecording(false);
+        }
+      };
+
+      const uploadAudio = async (blob, mimeType) => {
+        setUploading(true);
+        setError("");
+        try {
+          const ext = mimeType.includes("webm") ? "webm" : "mp4";
+          const formData = new FormData();
+          formData.append("audio", blob, "recording." + ext);
+          formData.append("step_id", stepId);
+          formData.append("assignment_id", assignmentId);
+          formData.append("student_id", studentId);
+          const resp = await fetch(API_BASE + "upload_audio.php", {
+            method: "POST",
+            headers: { "Authorization": "Bearer " + token },
+            body: formData
+          });
+          const data = await resp.json();
+          if (!resp.ok) throw new Error(data.error || "Upload failed");
+          setAudioUrl(API_BASE.replace("/api/", "/") + data.url);
+        } catch (err) {
+          setError("Upload failed: " + err.message);
+        } finally {
+          setUploading(false);
+        }
+      };
+
+      return (
+        <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "6px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+            {!recording ? (
+              <button onClick={startRecording} disabled={uploading} style={{
+                display: "inline-flex", alignItems: "center", gap: "4px",
+                background: "rgba(217,119,6,0.08)", border: "1px solid rgba(217,119,6,0.15)",
+                borderRadius: "6px", padding: "5px 10px", cursor: uploading ? "not-allowed" : "pointer",
+                fontSize: "12px", color: "#d97706", fontWeight: 500
+              }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+                </svg>
+                {uploading ? "Saving..." : "Record"}
+              </button>
+            ) : (
+              <button onClick={stopRecording} style={{
+                display: "inline-flex", alignItems: "center", gap: "4px",
+                background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)",
+                borderRadius: "6px", padding: "5px 10px", cursor: "pointer",
+                fontSize: "12px", color: "#ef4444", fontWeight: 500, animation: "pulse 1.5s infinite"
+              }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                Stop Recording
+              </button>
+            )}
+            {audioUrl && !recording && !uploading && (
+              <audio controls src={audioUrl} style={{ height: "32px", maxWidth: "220px" }} />
+            )}
+          </div>
+          {error && <div style={{ fontSize: "12px", color: "#ef4444" }}>{error}</div>}
+        </div>
+      );
     }
 
     // ============================================================
@@ -370,6 +560,9 @@
                   </>
                 )}
               </div>
+            </div>
+            <div style={{ textAlign: "center", marginTop: "24px", fontSize: "12px", color: "#94a3b8" }}>
+              &copy; {new Date().getFullYear()} Boing Media Ltd. Created by Dr Mark Baynes.
             </div>
           </div>
         </div>
@@ -1110,11 +1303,407 @@
       );
     }
 
+
+    // ============================================================
+    // SCALE DATA & REFERENCE
+    // ============================================================
+
+    const SCALE_TYPES = [
+      { name: "Major", intervals: [0,2,4,5,7,9,11], labels: ["1","2","3","4","5","6","7"] },
+      { name: "Natural Minor", intervals: [0,2,3,5,7,8,10], labels: ["1","2","b3","4","5","b6","b7"] },
+      { name: "Dorian", intervals: [0,2,3,5,7,9,10], labels: ["1","2","b3","4","5","6","b7"] },
+      { name: "Mixolydian", intervals: [0,2,4,5,7,9,10], labels: ["1","2","3","4","5","6","b7"] },
+      { name: "Lydian", intervals: [0,2,4,6,7,9,11], labels: ["1","2","3","#4","5","6","7"] },
+      { name: "Phrygian", intervals: [0,1,3,5,7,8,10], labels: ["1","b2","b3","4","5","b6","b7"] },
+      { name: "Locrian", intervals: [0,1,3,5,6,8,10], labels: ["1","b2","b3","4","b5","b6","b7"] },
+      { name: "Harmonic Minor", intervals: [0,2,3,5,7,8,11], labels: ["1","2","b3","4","5","b6","7"] },
+      { name: "Melodic Minor", intervals: [0,2,3,5,7,9,11], labels: ["1","2","b3","4","5","6","7"] },
+      { name: "Blues", intervals: [0,3,5,6,7,10], labels: ["1","b3","4","b5","5","b7"] },
+      { name: "Major Pentatonic", intervals: [0,2,4,7,9], labels: ["1","2","3","5","6"] },
+      { name: "Minor Pentatonic", intervals: [0,3,5,7,10], labels: ["1","b3","4","5","b7"] },
+      { name: "Whole Tone", intervals: [0,2,4,6,8,10], labels: ["1","2","3","#4","#5","b7"] },
+      { name: "Diminished (HW)", intervals: [0,1,3,4,6,7,9,10], labels: ["1","b2","b3","3","b5","5","6","b7"] },
+      { name: "Bebop Dominant", intervals: [0,2,4,5,7,9,10,11], labels: ["1","2","3","4","5","6","b7","7"] },
+    ];
+
+    function ScaleReference({ onBack }) {
+      const [rootIndex, setRootIndex] = useState(0);
+      const [scaleTypeIndex, setScaleTypeIndex] = useState(0);
+
+      const scaleType = SCALE_TYPES[scaleTypeIndex];
+      const noteIndices = scaleType.intervals.map(i => (rootIndex + i) % 12);
+      const noteNames = scaleType.intervals.map(i => NOTE_NAMES[(rootIndex + i) % 12]);
+
+      return (
+        <div style={{ ...styles.app, minHeight: "100vh" }}>
+          <div className="student-top-bar" style={styles.topBar}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <button onClick={onBack} style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", minWidth: 44, minHeight: 44, justifyContent: "center" }}><Icons.ArrowLeft /></button>
+              <span className="logo-text" style={styles.logo}>Scale Reference</span>
+            </div>
+          </div>
+
+          <div className="student-container" style={styles.container}>
+            <div className="student-card" style={styles.card}>
+              <label style={styles.label}>Root Note</label>
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                {NOTE_NAMES.map((n, i) => (
+                  <button key={i} onClick={() => setRootIndex(i)} style={{
+                    minWidth: 44, minHeight: 44, borderRadius: "10px", border: "none", cursor: "pointer",
+                    fontSize: "14px", fontWeight: 600,
+                    background: rootIndex === i ? "linear-gradient(135deg, #d97706, #f59e0b)" : "rgba(0,0,0,0.03)",
+                    color: rootIndex === i ? "#fff" : "#64748b",
+                  }}>{n}</button>
+                ))}
+              </div>
+            </div>
+
+            <div className="student-card" style={styles.card}>
+              <label style={styles.label}>Scale Type</label>
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                {SCALE_TYPES.map((st, i) => (
+                  <button key={i} onClick={() => setScaleTypeIndex(i)} style={{
+                    minHeight: 40, padding: "6px 14px", borderRadius: "10px", border: "none", cursor: "pointer",
+                    fontSize: "13px", fontWeight: 500,
+                    background: scaleTypeIndex === i ? "rgba(217,119,6,0.2)" : "rgba(0,0,0,0.02)",
+                    color: scaleTypeIndex === i ? "#92400e" : "#64748b",
+                    borderWidth: "2px", borderStyle: "solid",
+                    borderColor: scaleTypeIndex === i ? "rgba(217,119,6,0.3)" : "transparent",
+                  }}>{st.name}</button>
+                ))}
+              </div>
+            </div>
+
+            <div className="student-card" style={{ ...styles.card, textAlign: "center" }}>
+              <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "36px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>
+                {NOTE_NAMES[rootIndex]} {scaleType.name}
+              </div>
+              <div style={{ fontSize: "16px", color: "#64748b", marginBottom: "4px" }}>{noteNames.join(" - ")}</div>
+              <div style={{ display: "flex", justifyContent: "center", gap: "8px", marginTop: "8px", flexWrap: "wrap" }}>
+                {scaleType.labels.map((lbl, i) => (
+                  <span key={i} style={{
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    minWidth: "36px", height: "36px", borderRadius: "50%", padding: "0 6px",
+                    background: i === 0 ? "#f59e0b" : "rgba(217,119,6,0.15)",
+                    color: i === 0 ? "#fff" : "#92400e",
+                    fontSize: "12px", fontWeight: 700,
+                  }}>{lbl}</span>
+                ))}
+              </div>
+
+              <PianoKeyboard highlightedNotes={noteIndices} rootNote={rootIndex} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+
+    // ============================================================
+    // PLAYABLE KEYBOARD (Web Audio API)
+    // ============================================================
+
+    const audioCtxRef = { current: null };
+    function getAudioCtx() {
+      if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      return audioCtxRef.current;
+    }
+
+    function playNote(midiNote, duration = 0.6) {
+      const ctx = getAudioCtx();
+      const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
+      const now = ctx.currentTime;
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(freq, now);
+      gain.gain.setValueAtTime(0.35, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + duration);
+    }
+
+    function PlayableKeyboard({ onBack }) {
+      const [activeKeys, setActiveKeys] = useState(new Set());
+      const [octave, setOctave] = useState(4);
+      const numOctaves = 2;
+
+      const handleKeyDown = (midiNote) => {
+        playNote(midiNote);
+        setActiveKeys(prev => new Set([...prev, midiNote]));
+        setTimeout(() => setActiveKeys(prev => { const n = new Set(prev); n.delete(midiNote); return n; }), 300);
+      };
+
+      // Keyboard shortcut mapping (bottom row = lower octave, middle row = upper)
+      useEffect(() => {
+        const keyMap = { 'a': 0, 'w': 1, 's': 2, 'e': 3, 'd': 4, 'f': 5, 't': 6, 'g': 7, 'y': 8, 'h': 9, 'u': 10, 'j': 11, 'k': 12, 'o': 13, 'l': 14, 'p': 15, ';': 16 };
+        const handleKey = (e) => {
+          if (e.repeat) return;
+          const offset = keyMap[e.key.toLowerCase()];
+          if (offset !== undefined) handleKeyDown(octave * 12 + offset);
+        };
+        window.addEventListener('keydown', handleKey);
+        return () => window.removeEventListener('keydown', handleKey);
+      }, [octave]);
+
+      const startNote = octave * 12;
+      const keys = [];
+      for (let o = 0; o < numOctaves; o++) {
+        for (let n = 0; n < 12; n++) {
+          const midi = startNote + o * 12 + n;
+          const isBlack = [1,3,6,8,10].includes(n);
+          keys.push({ midi, note: n, isBlack, name: NOTE_NAMES[n] });
+        }
+      }
+      // Add final C
+      keys.push({ midi: startNote + numOctaves * 12, note: 0, isBlack: false, name: "C" });
+
+      const whiteKeys = keys.filter(k => !k.isBlack);
+      const blackKeys = keys.filter(k => k.isBlack);
+      const whiteWidth = 100 / whiteKeys.length;
+
+      // Calculate black key positions based on white key index
+      const getBlackKeyPosition = (blackKey) => {
+        const blackKeyIndex = keys.indexOf(blackKey);
+        let whitesBefore = 0;
+        for (let i = 0; i < blackKeyIndex; i++) {
+          if (!keys[i].isBlack) whitesBefore++;
+        }
+        return (whitesBefore * whiteWidth) - (whiteWidth * 0.3);
+      };
+
+      return (
+        <div style={{ ...styles.app, minHeight: "100vh" }}>
+          <div className="student-top-bar" style={styles.topBar}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <button onClick={onBack} style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", minWidth: 44, minHeight: 44, justifyContent: "center" }}><Icons.ArrowLeft /></button>
+              <span className="logo-text" style={styles.logo}>Piano</span>
+            </div>
+          </div>
+
+          <div className="student-container" style={{ ...styles.container, maxWidth: "700px" }}>
+            <div className="student-card" style={{ ...styles.card, padding: "24px 16px" }}>
+              <div style={{ display: "flex", justifyContent: "center", gap: "8px", marginBottom: "20px" }}>
+                <label style={{ ...styles.label, margin: 0, display: "flex", alignItems: "center" }}>Octave</label>
+                {[2,3,4,5,6].map(o => (
+                  <button key={o} onClick={() => setOctave(o)} style={{
+                    minWidth: 40, minHeight: 36, borderRadius: "8px", border: "none", cursor: "pointer",
+                    fontSize: "14px", fontWeight: 600,
+                    background: octave === o ? "linear-gradient(135deg, #d97706, #f59e0b)" : "rgba(0,0,0,0.04)",
+                    color: octave === o ? "#fff" : "#64748b",
+                  }}>{o}</button>
+                ))}
+              </div>
+
+              <div style={{ position: "relative", height: "180px", userSelect: "none" }}>
+                {/* White keys */}
+                {whiteKeys.map((k, i) => (
+                  <div key={k.midi} onMouseDown={() => handleKeyDown(k.midi)} onTouchStart={(e) => { e.preventDefault(); handleKeyDown(k.midi); }} style={{
+                    position: "absolute", left: `${i * whiteWidth}%`, width: `${whiteWidth}%`,
+                    height: "100%", background: activeKeys.has(k.midi) ? "#fef3c7" : "#fff",
+                    border: "1px solid #cbd5e1", borderRadius: "0 0 6px 6px", cursor: "pointer",
+                    display: "flex", alignItems: "flex-end", justifyContent: "center", paddingBottom: "8px",
+                    fontSize: "11px", color: "#94a3b8", fontWeight: 500, transition: "background 0.1s",
+                    boxSizing: "border-box",
+                  }}>{k.name}</div>
+                ))}
+                {/* Black keys */}
+                {blackKeys.map(k => (
+                  <div key={k.midi} onMouseDown={() => handleKeyDown(k.midi)} onTouchStart={(e) => { e.preventDefault(); handleKeyDown(k.midi); }} style={{
+                    position: "absolute", left: `${getBlackKeyPosition(k)}%`, width: `${whiteWidth * 0.6}%`,
+                    height: "60%", background: activeKeys.has(k.midi) ? "#92400e" : "#1e293b",
+                    borderRadius: "0 0 4px 4px", cursor: "pointer", zIndex: 2,
+                    transition: "background 0.1s",
+                  }} />
+                ))}
+              </div>
+            </div>
+
+            <p style={{ textAlign: "center", fontSize: "13px", color: "#94a3b8", marginTop: "12px" }}>
+              Tap keys or use your computer keyboard (A-L for notes, W/E/T/Y/U/O/P for sharps/flats)
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+
+    // ============================================================
+    // EAR TRAINING
+    // ============================================================
+
+    const INTERVALS = [
+      { name: "Minor 2nd", semitones: 1 },
+      { name: "Major 2nd", semitones: 2 },
+      { name: "Minor 3rd", semitones: 3 },
+      { name: "Major 3rd", semitones: 4 },
+      { name: "Perfect 4th", semitones: 5 },
+      { name: "Tritone", semitones: 6 },
+      { name: "Perfect 5th", semitones: 7 },
+      { name: "Minor 6th", semitones: 8 },
+      { name: "Major 6th", semitones: 9 },
+      { name: "Minor 7th", semitones: 10 },
+      { name: "Major 7th", semitones: 11 },
+      { name: "Octave", semitones: 12 },
+    ];
+
+    function EarTraining({ onBack }) {
+      const [mode, setMode] = useState("intervals"); // intervals or chords
+      const [currentQuestion, setCurrentQuestion] = useState(null);
+      const [answer, setAnswer] = useState(null);
+      const [score, setScore] = useState({ correct: 0, total: 0 });
+      const [streak, setStreak] = useState(0);
+
+      const playInterval = (semitones, rootMidi) => {
+        playNote(rootMidi, 0.8);
+        setTimeout(() => playNote(rootMidi + semitones, 0.8), 600);
+      };
+
+      const playChord = (intervals, rootMidi) => {
+        intervals.forEach(i => playNote(rootMidi + i, 1.0));
+      };
+
+      const newIntervalQuestion = () => {
+        const rootMidi = 60 + Math.floor(Math.random() * 12);
+        const interval = INTERVALS[Math.floor(Math.random() * INTERVALS.length)];
+        const q = { type: "interval", rootMidi, interval, semitones: interval.semitones };
+        setCurrentQuestion(q);
+        setAnswer(null);
+        setTimeout(() => playInterval(q.semitones, q.rootMidi), 200);
+      };
+
+      const QUIZ_CHORDS = [
+        { name: "Major", intervals: [0, 4, 7] },
+        { name: "Minor", intervals: [0, 3, 7] },
+        { name: "Diminished", intervals: [0, 3, 6] },
+        { name: "Augmented", intervals: [0, 4, 8] },
+        { name: "Major 7th", intervals: [0, 4, 7, 11] },
+        { name: "Dominant 7th", intervals: [0, 4, 7, 10] },
+        { name: "Minor 7th", intervals: [0, 3, 7, 10] },
+      ];
+
+      const newChordQuestion = () => {
+        const rootMidi = 60 + Math.floor(Math.random() * 12);
+        const chord = QUIZ_CHORDS[Math.floor(Math.random() * QUIZ_CHORDS.length)];
+        const q = { type: "chord", rootMidi, chord };
+        setCurrentQuestion(q);
+        setAnswer(null);
+        setTimeout(() => playChord(chord.intervals, rootMidi), 200);
+      };
+
+      const checkAnswer = (guess) => {
+        const correct = currentQuestion.type === "interval"
+          ? guess === currentQuestion.interval.name
+          : guess === currentQuestion.chord.name;
+        setAnswer({ guess, correct });
+        setScore(prev => ({ correct: prev.correct + (correct ? 1 : 0), total: prev.total + 1 }));
+        setStreak(correct ? streak + 1 : 0);
+      };
+
+      const replayQuestion = () => {
+        if (!currentQuestion) return;
+        if (currentQuestion.type === "interval") playInterval(currentQuestion.semitones, currentQuestion.rootMidi);
+        else playChord(currentQuestion.chord.intervals, currentQuestion.rootMidi);
+      };
+
+      const nextQuestion = mode === "intervals" ? newIntervalQuestion : newChordQuestion;
+      const options = mode === "intervals" ? INTERVALS.map(i => i.name) : QUIZ_CHORDS.map(c => c.name);
+      const correctAnswer = currentQuestion ? (currentQuestion.type === "interval" ? currentQuestion.interval.name : currentQuestion.chord.name) : null;
+
+      return (
+        <div style={{ ...styles.app, minHeight: "100vh" }}>
+          <div className="student-top-bar" style={styles.topBar}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <button onClick={onBack} style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", minWidth: 44, minHeight: 44, justifyContent: "center" }}><Icons.ArrowLeft /></button>
+              <span className="logo-text" style={styles.logo}>Ear Training</span>
+            </div>
+          </div>
+
+          <div className="student-container" style={{ ...styles.container, maxWidth: "600px" }}>
+            {/* Mode toggle */}
+            <div className="student-card" style={{ ...styles.card, display: "flex", gap: "8px", padding: "16px" }}>
+              {["intervals", "chords"].map(m => (
+                <button key={m} onClick={() => { setMode(m); setCurrentQuestion(null); setAnswer(null); }} style={{
+                  flex: 1, padding: "10px", borderRadius: "10px", border: "none", cursor: "pointer",
+                  fontSize: "14px", fontWeight: 600, textTransform: "capitalize",
+                  background: mode === m ? "linear-gradient(135deg, #d97706, #f59e0b)" : "rgba(0,0,0,0.03)",
+                  color: mode === m ? "#fff" : "#64748b",
+                }}>{m}</button>
+              ))}
+            </div>
+
+            {/* Score */}
+            {score.total > 0 && (
+              <div style={{ display: "flex", justifyContent: "center", gap: "20px", marginBottom: "16px" }}>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "24px", fontWeight: 700, color: "#1e293b" }}>{score.correct}/{score.total}</div>
+                  <div style={{ fontSize: "11px", color: "#94a3b8", textTransform: "uppercase" }}>Score</div>
+                </div>
+                {streak >= 3 && (
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "24px", fontWeight: 700, color: "#d97706" }}>{streak}</div>
+                    <div style={{ fontSize: "11px", color: "#94a3b8", textTransform: "uppercase" }}>Streak</div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Question area */}
+            <div className="student-card" style={{ ...styles.card, textAlign: "center" }}>
+              {!currentQuestion ? (
+                <div>
+                  <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "20px", color: "#1e293b", marginBottom: "12px" }}>
+                    {mode === "intervals" ? "Identify the interval" : "Identify the chord quality"}
+                  </div>
+                  <p style={{ fontSize: "14px", color: "#64748b", marginBottom: "20px" }}>
+                    {mode === "intervals" ? "You'll hear two notes played in sequence. Name the interval." : "You'll hear a chord. Identify its quality."}
+                  </p>
+                  <button onClick={nextQuestion} style={styles.btnPrimary}>Start</button>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "20px", color: "#1e293b", marginBottom: "16px" }}>
+                    {answer ? (answer.correct ? "Correct!" : `Not quite — it was ${correctAnswer}`) : "What do you hear?"}
+                  </div>
+                  <div style={{ display: "flex", gap: "8px", justifyContent: "center", marginBottom: "20px" }}>
+                    <button onClick={replayQuestion} style={{ ...styles.btnGhost, display: "flex", alignItems: "center", gap: "6px" }}>
+                      <Icons.Play /> Replay
+                    </button>
+                    {answer && <button onClick={nextQuestion} style={styles.btnPrimary}>Next</button>}
+                  </div>
+
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", justifyContent: "center" }}>
+                    {options.map(opt => {
+                      const isCorrectAnswer = opt === correctAnswer;
+                      const isWrongGuess = answer && answer.guess === opt && !answer.correct;
+                      return (
+                        <button key={opt} onClick={() => !answer && checkAnswer(opt)} disabled={!!answer} style={{
+                          padding: "10px 16px", borderRadius: "10px", border: "2px solid",
+                          cursor: answer ? "default" : "pointer", fontSize: "13px", fontWeight: 500,
+                          background: answer && isCorrectAnswer ? "rgba(16,185,129,0.15)" : isWrongGuess ? "rgba(239,68,68,0.1)" : "rgba(0,0,0,0.02)",
+                          borderColor: answer && isCorrectAnswer ? "#10b981" : isWrongGuess ? "#ef4444" : "transparent",
+                          color: answer && isCorrectAnswer ? "#047857" : isWrongGuess ? "#dc2626" : "#1e293b",
+                          opacity: answer && !isCorrectAnswer && !isWrongGuess ? 0.4 : 1,
+                        }}>{opt}</button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     // ============================================================
     // TOOLBOX (container for tools)
     // ============================================================
 
-    function Toolbox({ onOpenMetronome, onOpenChords }) {
+    function Toolbox({ onOpenMetronome, onOpenChords, onOpenScales, onOpenKeyboard, onOpenEarTraining }) {
       return (
         <div className="student-container" style={styles.container}>
           <h1 className="student-page-title" style={{ ...styles.pageTitle, fontSize: "24px" }}>Toolbox</h1>
@@ -1137,6 +1726,33 @@
               <div style={{ marginBottom: "12px" }}><Icons.Piano /></div>
               <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "16px", color: "#1e293b", marginBottom: "4px" }}>Chord Reference</div>
               <div style={{ fontSize: "12px", color: "#64748b" }}>Chord symbols and voicings</div>
+            </button>
+
+            <button className="toolbox-card" onClick={onOpenScales} style={{
+              ...styles.card, cursor: "pointer", textAlign: "center", padding: "32px 20px",
+              border: "2px solid rgba(0,0,0,0.04)", transition: "all 0.2s",
+            }}>
+              <div style={{ marginBottom: "12px" }}><Icons.Music /></div>
+              <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "16px", color: "#1e293b", marginBottom: "4px" }}>Scale Reference</div>
+              <div style={{ fontSize: "12px", color: "#64748b" }}>Scales, modes and patterns</div>
+            </button>
+
+            <button className="toolbox-card" onClick={onOpenKeyboard} style={{
+              ...styles.card, cursor: "pointer", textAlign: "center", padding: "32px 20px",
+              border: "2px solid rgba(0,0,0,0.04)", transition: "all 0.2s",
+            }}>
+              <div style={{ marginBottom: "12px" }}><Icons.Piano /></div>
+              <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "16px", color: "#1e293b", marginBottom: "4px" }}>Piano</div>
+              <div style={{ fontSize: "12px", color: "#64748b" }}>Playable keyboard with sound</div>
+            </button>
+
+            <button className="toolbox-card" onClick={onOpenEarTraining} style={{
+              ...styles.card, cursor: "pointer", textAlign: "center", padding: "32px 20px",
+              border: "2px solid rgba(0,0,0,0.04)", transition: "all 0.2s",
+            }}>
+              <div style={{ marginBottom: "12px" }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg></div>
+              <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "16px", color: "#1e293b", marginBottom: "4px" }}>Ear Training</div>
+              <div style={{ fontSize: "12px", color: "#64748b" }}>Interval and chord recognition</div>
             </button>
           </div>
         </div>
@@ -1286,11 +1902,392 @@
     }
 
     // ============================================================
+    // STUDENT LEARNING PREFERENCES QUESTIONNAIRE
+    // ============================================================
+
+    function StudentPreferencesForm({ studentId, token, onSaved }) {
+      const [prefs, setPrefs] = useState({ workload_pref: "moderate", task_size_pref: "mixed", stress_level: 3, practice_time_pref: 30, learning_style: "", free_notes: "" });
+      const [loading, setLoading] = useState(true);
+      const [saving, setSaving] = useState(false);
+      const [saved, setSaved] = useState(false);
+
+      useEffect(() => {
+        (async () => {
+          try {
+            const data = await apiFetch("learning.php?action=preferences&student_id=" + studentId, {}, token);
+            if (data && data.workload_pref) {
+              setPrefs({
+                workload_pref: data.workload_pref || "moderate",
+                task_size_pref: data.task_size_pref || "mixed",
+                stress_level: parseInt(data.stress_level) || 3,
+                practice_time_pref: parseInt(data.practice_time_pref) || 30,
+                learning_style: data.learning_style || "",
+                free_notes: data.free_notes || ""
+              });
+            }
+          } catch (e) { /* first time, no prefs yet */ }
+          setLoading(false);
+        })();
+      }, [studentId]);
+
+      const handleSave = async () => {
+        setSaving(true);
+        try {
+          await apiFetch("learning.php?action=preferences&student_id=" + studentId, {
+            method: "POST",
+            body: JSON.stringify(prefs)
+          }, token);
+          setSaved(true);
+          setTimeout(() => setSaved(false), 2000);
+          if (onSaved) onSaved();
+        } catch (e) { alert("Save failed: " + e.message); }
+        setSaving(false);
+      };
+
+      const sliderLabel = (val, labels) => labels[val - 1] || "";
+      const stressLabels = ["Very relaxed", "Relaxed", "Moderate", "Some pressure helps", "Thrives under pressure"];
+      const enjoyLabels = ["1", "2", "3", "4", "5"];
+
+      if (loading) return <div style={{ padding: "20px", color: "#94a3b8" }}>Loading...</div>;
+
+      return (
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          <div>
+            <label style={styles.label}>How much practice do you prefer each week?</label>
+            <div style={{ display: "flex", gap: "8px", marginTop: "6px", flexWrap: "wrap" }}>
+              {[{v: "light", l: "Light -- just the essentials"}, {v: "moderate", l: "Moderate -- a good balance"}, {v: "heavy", l: "Lots -- I love to practise!"}].map(opt => (
+                <button key={opt.v} onClick={() => setPrefs(p => ({...p, workload_pref: opt.v}))}
+                  style={{ padding: "8px 16px", borderRadius: "20px", fontSize: "13px", cursor: "pointer", border: prefs.workload_pref === opt.v ? "2px solid #d97706" : "1px solid #e2e8f0", background: prefs.workload_pref === opt.v ? "rgba(217,119,6,0.1)" : "#fff", color: prefs.workload_pref === opt.v ? "#b45309" : "#64748b", fontWeight: prefs.workload_pref === opt.v ? 600 : 400 }}
+                >{opt.l}</button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label style={styles.label}>Do you prefer fewer big tasks or lots of small ones?</label>
+            <div style={{ display: "flex", gap: "8px", marginTop: "6px", flexWrap: "wrap" }}>
+              {[{v: "few_big", l: "A few big pieces"}, {v: "mixed", l: "A mix of both"}, {v: "many_small", l: "Lots of small tasks"}].map(opt => (
+                <button key={opt.v} onClick={() => setPrefs(p => ({...p, task_size_pref: opt.v}))}
+                  style={{ padding: "8px 16px", borderRadius: "20px", fontSize: "13px", cursor: "pointer", border: prefs.task_size_pref === opt.v ? "2px solid #d97706" : "1px solid #e2e8f0", background: prefs.task_size_pref === opt.v ? "rgba(217,119,6,0.1)" : "#fff", color: prefs.task_size_pref === opt.v ? "#b45309" : "#64748b", fontWeight: prefs.task_size_pref === opt.v ? 600 : 400 }}
+                >{opt.l}</button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label style={styles.label}>How do you feel about pressure? ({stressLabels[prefs.stress_level - 1]})</label>
+            <input type="range" min="1" max="5" value={prefs.stress_level} onChange={e => setPrefs(p => ({...p, stress_level: parseInt(e.target.value)}))}
+              style={{ width: "100%", marginTop: "8px", accentColor: "#d97706" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#94a3b8", marginTop: "4px" }}>
+              <span>Very relaxed</span><span>Thrives under pressure</span>
+            </div>
+          </div>
+
+          <div>
+            <label style={styles.label}>How many minutes can you practise per day?</label>
+            <div style={{ display: "flex", gap: "8px", marginTop: "6px", flexWrap: "wrap" }}>
+              {[15, 30, 45, 60, 90].map(mins => (
+                <button key={mins} onClick={() => setPrefs(p => ({...p, practice_time_pref: mins}))}
+                  style={{ padding: "8px 16px", borderRadius: "20px", fontSize: "13px", cursor: "pointer", border: prefs.practice_time_pref === mins ? "2px solid #d97706" : "1px solid #e2e8f0", background: prefs.practice_time_pref === mins ? "rgba(217,119,6,0.1)" : "#fff", color: prefs.practice_time_pref === mins ? "#b45309" : "#64748b", fontWeight: prefs.practice_time_pref === mins ? 600 : 400 }}
+                >{mins} min</button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label style={styles.label}>How do you learn best? (optional)</label>
+            <textarea value={prefs.learning_style} onChange={e => setPrefs(p => ({...p, learning_style: e.target.value}))}
+              placeholder="e.g. I learn best by listening first, then trying it slowly. I like having a recording to copy..."
+              rows={3} style={{ ...styles.input, resize: "vertical", marginTop: "6px", fontSize: "13px" }} />
+          </div>
+
+          <div>
+            <label style={styles.label}>Anything else your teacher should know?</label>
+            <textarea value={prefs.free_notes} onChange={e => setPrefs(p => ({...p, free_notes: e.target.value}))}
+              placeholder="e.g. I have a gig coming up, I struggle with reading, I get nervous performing..."
+              rows={3} style={{ ...styles.input, resize: "vertical", marginTop: "6px", fontSize: "13px" }} />
+          </div>
+
+          <button onClick={handleSave} disabled={saving} style={{ ...styles.btnPrimary, alignSelf: "flex-start" }}>
+            {saving ? "Saving..." : saved ? "Saved!" : "Save Preferences"}
+          </button>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // WEEKLY CHECK-IN (shown to student after practice)
+    // ============================================================
+
+    function WeeklyCheckIn({ studentId, token, weekLabel, onComplete }) {
+      const [form, setForm] = useState({ felt_workload: "just_right", felt_difficulty: "just_right", felt_enjoyment: 3, free_comment: "" });
+      const [saving, setSaving] = useState(false);
+
+      const handleSubmit = async () => {
+        setSaving(true);
+        try {
+          await apiFetch("learning.php?action=checkins&student_id=" + studentId, {
+            method: "POST",
+            body: JSON.stringify({ ...form, week_label: weekLabel })
+          }, token);
+          if (onComplete) onComplete();
+        } catch (e) { alert("Failed: " + e.message); }
+        setSaving(false);
+      };
+
+      const optBtn = (field, value, label, emoji) => (
+        <button onClick={() => setForm(f => ({...f, [field]: value}))}
+          style={{ padding: "8px 14px", borderRadius: "20px", fontSize: "13px", cursor: "pointer", border: form[field] === value ? "2px solid #d97706" : "1px solid #e2e8f0", background: form[field] === value ? "rgba(217,119,6,0.1)" : "#fff", color: form[field] === value ? "#b45309" : "#64748b", fontWeight: form[field] === value ? 600 : 400, display: "flex", alignItems: "center", gap: "4px" }}
+        >{emoji} {label}</button>
+      );
+
+      return (
+        <div style={{ ...styles.card, border: "2px solid rgba(217,119,6,0.2)", background: "rgba(217,119,6,0.03)" }}>
+          <h3 style={{ fontSize: "16px", fontWeight: 600, color: "#1e293b", marginBottom: "4px" }}>How was your practice this week?</h3>
+          <p style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "16px" }}>Quick check-in to help your teacher fine-tune your assignments</p>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div>
+              <label style={{ ...styles.label, fontSize: "13px" }}>Amount of work</label>
+              <div style={{ display: "flex", gap: "8px", marginTop: "6px", flexWrap: "wrap" }}>
+                {optBtn("felt_workload", "too_little", "Not enough", "😴")}
+                {optBtn("felt_workload", "just_right", "Just right", "👍")}
+                {optBtn("felt_workload", "too_much", "Too much", "😓")}
+              </div>
+            </div>
+
+            <div>
+              <label style={{ ...styles.label, fontSize: "13px" }}>Difficulty level</label>
+              <div style={{ display: "flex", gap: "8px", marginTop: "6px", flexWrap: "wrap" }}>
+                {optBtn("felt_difficulty", "too_easy", "Too easy", "🥱")}
+                {optBtn("felt_difficulty", "just_right", "Just right", "👌")}
+                {optBtn("felt_difficulty", "too_hard", "Too hard", "😰")}
+              </div>
+            </div>
+
+            <div>
+              <label style={{ ...styles.label, fontSize: "13px" }}>How much did you enjoy it? ({form.felt_enjoyment}/5)</label>
+              <input type="range" min="1" max="5" value={form.felt_enjoyment} onChange={e => setForm(f => ({...f, felt_enjoyment: parseInt(e.target.value)}))}
+                style={{ width: "100%", marginTop: "8px", accentColor: "#d97706" }} />
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#94a3b8", marginTop: "4px" }}>
+                <span>Not great</span><span>Loved it!</span>
+              </div>
+            </div>
+
+            <div>
+              <label style={{ ...styles.label, fontSize: "13px" }}>Any comments? (optional)</label>
+              <textarea value={form.free_comment} onChange={e => setForm(f => ({...f, free_comment: e.target.value}))}
+                placeholder="e.g. The blues scale exercise was really fun! The voicings were tricky..."
+                rows={2} style={{ ...styles.input, resize: "vertical", marginTop: "6px", fontSize: "13px" }} />
+            </div>
+
+            <button onClick={handleSubmit} disabled={saving} style={{ ...styles.btnPrimary, alignSelf: "flex-start" }}>
+              {saving ? "Sending..." : "Submit Check-in"}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // TEACHER OBSERVATIONS PANEL
+    // ============================================================
+
+    function TeacherObservations({ studentId, token }) {
+      const [observations, setObservations] = useState([]);
+      const [newNote, setNewNote] = useState("");
+      const [saving, setSaving] = useState(false);
+
+      const fetchObservations = async () => {
+        try {
+          const data = await apiFetch("learning.php?action=observations&student_id=" + studentId, {}, token);
+          setObservations(data);
+        } catch (e) { /* ignore */ }
+      };
+
+      useEffect(() => { fetchObservations(); }, [studentId]);
+
+      const handleAdd = async () => {
+        if (!newNote.trim()) return;
+        setSaving(true);
+        try {
+          await apiFetch("learning.php?action=observations&student_id=" + studentId, {
+            method: "POST",
+            body: JSON.stringify({ note: newNote.trim() })
+          }, token);
+          setNewNote("");
+          await fetchObservations();
+        } catch (e) { alert("Failed: " + e.message); }
+        setSaving(false);
+      };
+
+      const handleDelete = async (id) => {
+        try {
+          await apiFetch("learning.php?action=observations&student_id=" + studentId + "&id=" + id, { method: "DELETE" }, token);
+          await fetchObservations();
+        } catch (e) { alert("Failed: " + e.message); }
+      };
+
+      const formatDate = (d) => {
+        const date = new Date(d);
+        const now = new Date();
+        const diff = Math.floor((now - date) / 86400000);
+        if (diff === 0) return "Today " + date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        if (diff === 1) return "Yesterday";
+        if (diff < 7) return diff + "d ago";
+        return date.toLocaleDateString([], { day: "numeric", month: "short", year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined });
+      };
+
+      return (
+        <div>
+          <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+            <input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Add a lesson observation..."
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAdd(); } }}
+              style={{ ...styles.input, flex: 1, fontSize: "13px" }} />
+            <button onClick={handleAdd} disabled={saving || !newNote.trim()} style={{ ...styles.btnPrimary, whiteSpace: "nowrap", opacity: !newNote.trim() ? 0.5 : 1 }}>
+              {saving ? "..." : "Add Note"}
+            </button>
+          </div>
+          {observations.length === 0 ? (
+            <p style={{ fontSize: "13px", color: "#94a3b8", fontStyle: "italic" }}>No observations yet. Add notes during lessons to track how this student learns.</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {observations.map(obs => (
+                <div key={obs.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "10px 12px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #f1f5f9" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: "13px", color: "#1e293b", lineHeight: 1.5 }}>{obs.note}</div>
+                    <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "4px" }}>{formatDate(obs.createdAt)}</div>
+                  </div>
+                  <button onClick={() => handleDelete(obs.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: "4px", marginLeft: "8px" }} title="Delete"><Icons.Trash /></button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ============================================================
+    // STUDENT LEARNING PROFILE (teacher view — combines prefs + check-ins + observations)
+    // ============================================================
+
+    function StudentLearningProfile({ studentId, studentName, token }) {
+      const [prefs, setPrefs] = useState(null);
+      const [checkins, setCheckins] = useState([]);
+      const [tab, setTab] = useState("observations");
+
+      useEffect(() => {
+        (async () => {
+          try {
+            const p = await apiFetch("learning.php?action=preferences&student_id=" + studentId, {}, token);
+            if (p && p.workload_pref) setPrefs(p);
+          } catch (e) {}
+          try {
+            const c = await apiFetch("learning.php?action=checkins&student_id=" + studentId, {}, token);
+            setCheckins(c);
+          } catch (e) {}
+        })();
+      }, [studentId]);
+
+      const prefLabels = {
+        workload_pref: { light: "Light", moderate: "Moderate", heavy: "Heavy" },
+        task_size_pref: { few_big: "Fewer big tasks", mixed: "Mix of both", many_small: "Many small tasks" },
+      };
+      const workloadEmoji = { too_little: "😴", just_right: "👍", too_much: "😓" };
+      const difficultyEmoji = { too_easy: "🥱", just_right: "👌", too_hard: "😰" };
+
+      const tabBtn = (key, label) => (
+        <button onClick={() => setTab(key)} style={{
+          padding: "6px 16px", borderRadius: "20px", fontSize: "13px", cursor: "pointer",
+          border: tab === key ? "2px solid #d97706" : "1px solid #e2e8f0",
+          background: tab === key ? "rgba(217,119,6,0.1)" : "#fff",
+          color: tab === key ? "#b45309" : "#64748b",
+          fontWeight: tab === key ? 600 : 400
+        }}>{label}</button>
+      );
+
+      return (
+        <div>
+          <div style={{ display: "flex", gap: "8px", marginBottom: "20px", flexWrap: "wrap" }}>
+            {tabBtn("observations", "Lesson Notes")}
+            {tabBtn("preferences", "Their Preferences")}
+            {tabBtn("checkins", "Weekly Check-ins")}
+          </div>
+
+          {tab === "observations" && (
+            <TeacherObservations studentId={studentId} token={token} />
+          )}
+
+          {tab === "preferences" && (
+            prefs ? (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "12px" }}>
+                <div style={{ ...styles.card, padding: "14px" }}>
+                  <div style={{ fontSize: "11px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "6px" }}>Workload</div>
+                  <div style={{ fontSize: "15px", fontWeight: 600, color: "#1e293b" }}>{prefLabels.workload_pref[prefs.workload_pref] || prefs.workload_pref}</div>
+                </div>
+                <div style={{ ...styles.card, padding: "14px" }}>
+                  <div style={{ fontSize: "11px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "6px" }}>Task Size</div>
+                  <div style={{ fontSize: "15px", fontWeight: 600, color: "#1e293b" }}>{prefLabels.task_size_pref[prefs.task_size_pref] || prefs.task_size_pref}</div>
+                </div>
+                <div style={{ ...styles.card, padding: "14px" }}>
+                  <div style={{ fontSize: "11px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "6px" }}>Pressure</div>
+                  <div style={{ fontSize: "15px", fontWeight: 600, color: "#1e293b" }}>{prefs.stress_level}/5</div>
+                </div>
+                <div style={{ ...styles.card, padding: "14px" }}>
+                  <div style={{ fontSize: "11px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "6px" }}>Daily Practice</div>
+                  <div style={{ fontSize: "15px", fontWeight: 600, color: "#1e293b" }}>{prefs.practice_time_pref} min</div>
+                </div>
+                {prefs.learning_style && (
+                  <div style={{ ...styles.card, padding: "14px", gridColumn: "1 / -1" }}>
+                    <div style={{ fontSize: "11px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "6px" }}>How They Learn</div>
+                    <div style={{ fontSize: "13px", color: "#1e293b", lineHeight: 1.5 }}>{prefs.learning_style}</div>
+                  </div>
+                )}
+                {prefs.free_notes && (
+                  <div style={{ ...styles.card, padding: "14px", gridColumn: "1 / -1" }}>
+                    <div style={{ fontSize: "11px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "6px" }}>Other Notes</div>
+                    <div style={{ fontSize: "13px", color: "#1e293b", lineHeight: 1.5 }}>{prefs.free_notes}</div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p style={{ fontSize: "13px", color: "#94a3b8", fontStyle: "italic" }}>{studentName} hasn't filled in their preferences yet.</p>
+            )
+          )}
+
+          {tab === "checkins" && (
+            checkins.length === 0 ? (
+              <p style={{ fontSize: "13px", color: "#94a3b8", fontStyle: "italic" }}>No check-ins yet. Students are prompted after completing their practice.</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {checkins.map(c => (
+                  <div key={c.id} style={{ ...styles.card, padding: "14px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                      <span style={{ fontSize: "13px", fontWeight: 600, color: "#1e293b" }}>{c.weekLabel || "Check-in"}</span>
+                      <span style={{ fontSize: "11px", color: "#94a3b8" }}>{new Date(c.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", fontSize: "13px" }}>
+                      <span>Workload: {workloadEmoji[c.feltWorkload] || ""} {c.feltWorkload.replace("_", " ")}</span>
+                      <span>Difficulty: {difficultyEmoji[c.feltDifficulty] || ""} {c.feltDifficulty.replace("_", " ")}</span>
+                      <span>Enjoyment: {"⭐".repeat(c.feltEnjoyment)}</span>
+                    </div>
+                    {c.freeComment && <div style={{ fontSize: "13px", color: "#64748b", marginTop: "8px", fontStyle: "italic" }}>"{c.freeComment}"</div>}
+                  </div>
+                ))}
+              </div>
+            )
+          )}
+        </div>
+      );
+    }
+
+    // ============================================================
     // TEACHER PAGES
     // ============================================================
 
     function TeacherStudents({ students, assignments, progress, contentLibrary, token, onRefreshStudents, onRefreshAssignments, onRefreshProgress }) {
       const [showAdd, setShowAdd] = useState(false);
+      const [expandedStudentId, setExpandedStudentId] = useState(null);
       const [error, setError] = useState("");
       const [copiedId, setCopiedId] = useState(null);
 
@@ -1405,6 +2402,19 @@
                     {!latestAssignment && (
                       <div style={{ marginTop: "12px", fontSize: "13px", color: "#94a3b8", fontStyle: "italic" }}>No assignments yet</div>
                     )}
+
+                    <div style={{ marginTop: "16px", borderTop: "1px solid #f1f5f9", paddingTop: "12px" }}>
+                      <button onClick={() => setExpandedStudentId(expandedStudentId === student.id ? null : student.id)}
+                        style={{ background: "none", border: "none", cursor: "pointer", fontSize: "13px", color: "#d97706", fontWeight: 500, display: "flex", alignItems: "center", gap: "6px", padding: 0 }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ transform: expandedStudentId === student.id ? "rotate(90deg)" : "none", transition: "transform 0.2s" }}><polyline points="9 18 15 12 9 6"/></svg>
+                        Learning Profile
+                      </button>
+                      {expandedStudentId === student.id && (
+                        <div style={{ marginTop: "12px" }}>
+                          <StudentLearningProfile studentId={student.id} studentName={student.name} token={token} />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -1943,6 +2953,8 @@
       const [showBulkGenerate, setShowBulkGenerate] = useState(false);
       const [filter, setFilter] = useState("All");
       const [error, setError] = useState("");
+      const [editingId, setEditingId] = useState(null);
+      const [editForm, setEditForm] = useState({});
 
       const filtered = filter === "All" ? contentLibrary : contentLibrary.filter(c => c.track === filter);
 
@@ -1959,6 +2971,16 @@
         try {
           await apiFetch(`content.php?id=${id}`, { method: 'DELETE' }, token);
           await onRefreshContent();
+        } catch (err) {
+          setError(err.message);
+        }
+      };
+
+      const handleUpdateContent = async (id, data) => {
+        try {
+          await apiFetch("content.php?id=" + id, { method: "PUT", body: JSON.stringify(data) }, token);
+          await onRefreshContent();
+          setEditingId(null);
         } catch (err) {
           setError(err.message);
         }
@@ -2012,19 +3034,47 @@
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "16px" }}>
               {filtered.map(content => (
                 <div key={content.id} style={styles.card}>
+                  {editingId === content.id ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <select value={editForm.type || ""} onChange={e => setEditForm(f => ({ ...f, type: e.target.value }))} style={{ ...styles.input, flex: "0 0 auto", width: "auto", padding: "6px 10px", fontSize: "13px" }}>
+                          {["WATCH", "LISTEN", "READ", "PLAY", "DRILL", "EXPLORE"].map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                        <select value={editForm.track || ""} onChange={e => setEditForm(f => ({ ...f, track: e.target.value }))} style={{ ...styles.input, flex: "0 0 auto", width: "auto", padding: "6px 10px", fontSize: "13px" }}>
+                          {Object.keys(TAG_STYLES).map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                      </div>
+                      <input value={editForm.title || ""} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} placeholder="Title" style={{ ...styles.input, fontSize: "15px", fontWeight: 500 }} />
+                      <textarea value={editForm.description || ""} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} placeholder="Description" rows={4} style={{ ...styles.input, fontSize: "13px", lineHeight: 1.5, resize: "vertical" }} />
+                      <input value={editForm.url || ""} onChange={e => setEditForm(f => ({ ...f, url: e.target.value }))} placeholder="URL (optional)" style={{ ...styles.input, fontSize: "13px" }} />
+                      <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                        <button onClick={() => setEditingId(null)} style={styles.btnGhost}>Cancel</button>
+                        <button onClick={() => handleUpdateContent(content.id, editForm)} style={styles.btnPrimary}>
+                          <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>Save</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                  <>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div style={{ flex: 1 }}>
                       <div style={styles.contentTypeIcon}>{content.type}</div>
                       <div style={{ fontSize: "15px", fontWeight: 500, color: "#1e293b", marginBottom: "6px" }}>{content.title}</div>
                       <span style={styles.tag(content.track)}>{content.track}</span>
                     </div>
-                    <button style={styles.btnDanger} onClick={() => handleRemoveContent(content.id)}><Icons.Trash /></button>
+                    <div style={{ display: "flex", gap: "4px" }}>
+                      <button style={{ ...styles.btnGhost, padding: "6px" }} onClick={() => { setEditingId(content.id); setEditForm({ title: content.title, description: content.description || "", type: content.type, track: content.track, url: content.url || "" }); }} title="Edit"><Icons.Edit /></button>
+                      <button style={styles.btnDanger} onClick={() => handleRemoveContent(content.id)}><Icons.Trash /></button>
+                    </div>
                   </div>
                   {content.description && <p style={{ fontSize: "13px", color: "#64748b", marginTop: "10px", lineHeight: 1.5 }}>{content.description}</p>}
                   {content.url && (
-                    <a href={content.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "12px", color: "#d97706", marginTop: "8px", textDecoration: "none" }}>
-                      <Icons.Link /> {content.url.length > 45 ? content.url.slice(0, 45) + "..." : content.url}
-                    </a>
+                    <div>
+                      <YouTubeEmbed url={content.url} />
+                      {!content.url.match(/youtu\.?be/) && <a href={content.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "12px", color: "#d97706", marginTop: "8px", textDecoration: "none" }}>
+                        <Icons.Link /> {content.url.length > 45 ? content.url.slice(0, 45) + "..." : content.url}
+                      </a>}
+                    </div>
                   )}
                   <div style={{ display: "flex", gap: "8px", marginTop: "12px", flexWrap: "wrap", alignItems: "center" }}>
                     <GenerateLessonButton content={content} token={token} onLessonGenerated={(id, html) => { onViewLesson(id, html); onRefreshContent(); }} />
@@ -2035,6 +3085,8 @@
                       </button>
                     )}
                   </div>
+                  </>
+                  )}
                 </div>
               ))}
             </div>
@@ -2154,6 +3206,8 @@
                               {content && <span style={styles.tag(content.track)}>{content.track}</span>}
                               {content && <span style={styles.contentTypeIcon}>{content.type}</span>}
                               {fb && <span style={{ fontSize: "12px", color: "#64748b" }}>{fb.emoji} {fb.label}</span>}
+                              {stepProgress?.practiceSeconds > 0 && <span style={{ fontSize: "12px", color: "#94a3b8" }}>({Math.floor(stepProgress.practiceSeconds / 60)}m practised)</span>}
+                              {stepProgress?.audioUrl && <audio controls src={API_BASE.replace("/api/", "/") + stepProgress.audioUrl} style={{ height: "28px", maxWidth: "200px" }} />}
                               {(stepProgress?.feedbackNote || stepProgress?.feedback_note) && <span style={{ fontSize: "12px", color: "#64748b", fontStyle: "italic" }}>-- "{stepProgress.feedbackNote || stepProgress.feedback_note}"</span>}
                             </div>
                           </div>
@@ -2221,6 +3275,7 @@
 
     function StudentView({ studentId, student, token, onBack, isStudentAuth }) {
       const [viewingStudentLesson, setViewingStudentLesson] = useState(null);
+      const timerSecondsRef = useRef({});
       const [assignments, setAssignments] = useState([]);
       const [progress, setProgress] = useState([]);
       const [contentLibrary, setContentLibrary] = useState([]);
@@ -2258,6 +3313,9 @@
       // Full-screen tools
       if (activeTool === "metronome") return <Metronome onBack={() => setActiveTool(null)} />;
       if (activeTool === "chords") return <ChordReference onBack={() => setActiveTool(null)} />;
+      if (activeTool === "scales") return <ScaleReference onBack={() => setActiveTool(null)} />;
+      if (activeTool === "keyboard") return <PlayableKeyboard onBack={() => setActiveTool(null)} />;
+      if (activeTool === "eartraining") return <EarTraining onBack={() => setActiveTool(null)} />;
 
       const studentName = student?.name || "Student";
 
@@ -2313,7 +3371,7 @@
         try {
           await apiFetch('progress.php', {
             method: 'POST',
-            body: JSON.stringify({ studentId, assignmentId: activeAssignment.id, stepId, completed: true, feedback, feedbackNote }),
+            body: JSON.stringify({ studentId, assignmentId: activeAssignment.id, stepId, completed: true, feedback, feedbackNote, practiceSeconds: timerSecondsRef.current[stepId] || 0 }),
           }, token);
           await loadData();
         } catch (err) {
@@ -2360,6 +3418,10 @@
                     <div style={{ ...styles.progressBar, marginTop: "16px" }}><div style={styles.progressFill(pct)} /></div>
                   )}
                 </div>
+
+                {allDone && !viewingPast && isStudentAuth && (
+                  <WeeklyCheckIn studentId={studentId} token={token} weekLabel={activeAssignment?.weekLabel} onComplete={() => {}} />
+                )}
 
                 {allDone && !viewingPast && assignments.length > 1 && (
                   <div className="student-card" style={{ ...styles.card, textAlign: "center", padding: "32px" }}>
@@ -2417,9 +3479,12 @@
                             {step.notes && <div style={{ fontSize: "13px", color: "#5a4a38", marginTop: "4px", lineHeight: 1.5 }}>{step.notes}</div>}
                             {content?.description && <div style={{ fontSize: "13px", color: "#64748b", marginTop: "4px", lineHeight: 1.5 }}>{content.description}</div>}
                             {content?.url && (
-                              <a href={content.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "12px", color: "#d97706", marginTop: "6px", textDecoration: "none" }}>
-                                <Icons.Link /> Open resource
-                              </a>
+                              <React.Fragment>
+                                <YouTubeEmbed url={content.url} />
+                                {!content.url.match(/youtu\.?be/) && <a href={content.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "12px", color: "#d97706", marginTop: "6px", textDecoration: "none" }}>
+                                  <Icons.Link /> Open resource
+                                </a>}
+                              </React.Fragment>
                             )}
                             {(content?.lesson_content) && (
                               <button onClick={() => setViewingStudentLesson({ html: content.lesson_content, title: content.title, track: content.track, type: content.type })} style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "12px", color: "#d97706", background: "rgba(217,119,6,0.08)", border: "1px solid rgba(217,119,6,0.15)", borderRadius: "6px", padding: "5px 10px", cursor: "pointer", marginTop: "6px" }}>
@@ -2431,6 +3496,12 @@
                               {content && <span style={styles.tag(content.track)}>{content.track}</span>}
                               {fb && <span style={{ fontSize: "12px", color: "#64748b" }}>{fb.emoji} {fb.label}</span>}
                             </div>
+                            {!completed && (
+                              <PracticeTimer stepId={step.id} assignmentId={activeAssignment.id} studentId={studentId} token={token} initialSeconds={progressEntry?.practiceSeconds || 0} onTick={(s) => { timerSecondsRef.current[step.id] = s; }} />
+                            )}
+                            {!completed && (
+                              <AudioRecorder stepId={step.id} assignmentId={activeAssignment.id} studentId={studentId} token={token} existingUrl={progressEntry?.audioUrl} />
+                            )}
                             {isNext && !completed && (
                               <button className="student-mark-complete" onClick={() => handleComplete(step.id)} style={{ ...styles.btnPrimary, marginTop: "12px", fontSize: "13px", padding: "8px 20px" }}>
                                 Mark Complete
@@ -2448,11 +3519,22 @@
                   </div>
                 )}
               </div>
-            ) : (
+            ) : activeTab === "toolbox" ? (
               <Toolbox
                 onOpenMetronome={() => setActiveTool("metronome")}
                 onOpenChords={() => setActiveTool("chords")}
+                onOpenScales={() => setActiveTool("scales")}
+                onOpenKeyboard={() => setActiveTool("keyboard")}
+                onOpenEarTraining={() => setActiveTool("eartraining")}
               />
+            ) : (
+              <div className="student-container" style={styles.container}>
+                <h2 style={{ ...styles.pageTitle, fontSize: "22px" }}>My Learning Profile</h2>
+                <p style={{ fontSize: "14px", color: "#64748b", marginBottom: "20px" }}>Help your teacher understand how you learn best</p>
+                <div style={styles.card}>
+                  <StudentPreferencesForm studentId={studentId} token={token} />
+                </div>
+              </div>
             )}
           </div>
 
@@ -2480,6 +3562,15 @@
             }}>
               <Icons.Wrench />
               <span style={{ fontSize: "10px", fontWeight: 600 }}>Toolbox</span>
+            </button>
+            <button onClick={() => setActiveTab("profile")} style={{
+              flex: 1, padding: "10px 0", border: "none", cursor: "pointer",
+              background: "transparent", display: "flex", flexDirection: "column", alignItems: "center", gap: "2px",
+              color: activeTab === "profile" ? "#fbbf24" : "rgba(255,255,255,0.4)",
+              minHeight: 56,
+            }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <span style={{ fontSize: "10px", fontWeight: 600 }}>Profile</span>
             </button>
           </div>
 
@@ -2519,6 +3610,17 @@
               }}>
                 <Icons.Wrench /> Toolbox
               </button>
+              <button onClick={() => setActiveTab("profile")} style={{
+                ...styles.btnSmall, padding: "10px 20px", borderRadius: "24px",
+                background: activeTab === "profile" ? "#1e293b" : "rgba(51,65,85,0.06)",
+                color: activeTab === "profile" ? "#fbbf24" : "#64748b",
+                border: "1px solid rgba(60,40,20,0.1)", cursor: "pointer",
+                boxShadow: "0 2px 12px rgba(30,20,10,0.1)",
+                display: "flex", alignItems: "center", gap: "6px", fontSize: "13px",
+              }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Profile
+              </button>
             </div>
           )}
 
@@ -2528,6 +3630,128 @@
               onClose={() => setShowFeedback(null)}
               onSubmit={(feedback, note) => submitFeedback(showFeedback.stepId, feedback, note)}
             />
+          )}
+        </div>
+      );
+    }
+
+
+    // ============================================================
+    // TEACHER DASHBOARD
+    // ============================================================
+
+    function TeacherDashboard({ students, assignments, progress }) {
+      const studentStats = students.map(student => {
+        const studentAssignments = assignments.filter(a => a.studentId === student.id && a.released);
+        const studentProgress = progress.filter(p => p.studentId === student.id);
+        const latestAssignment = studentAssignments[0];
+
+        let totalSteps = 0, completedSteps = 0, totalPracticeSeconds = 0;
+        studentAssignments.forEach(a => {
+          const steps = a.steps || [];
+          totalSteps += steps.length;
+          steps.forEach(step => {
+            const prog = studentProgress.find(p => p.stepId === step.id && p.assignmentId === a.id);
+            if (prog && prog.completed) completedSteps++;
+            totalPracticeSeconds += (prog ? (prog.practiceSeconds || 0) : 0);
+          });
+        });
+
+        const latestSteps = latestAssignment ? (latestAssignment.steps || []) : [];
+        const latestCompleted = latestSteps.filter(step => studentProgress.find(p => p.stepId === step.id && p.assignmentId === (latestAssignment ? latestAssignment.id : '') && p.completed)).length;
+
+        const lastActivity = studentProgress
+          .filter(p => p.completedAt)
+          .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))[0];
+
+        const daysSinceActivity = lastActivity ? Math.floor((Date.now() - new Date(lastActivity.completedAt)) / 86400000) : null;
+
+        return {
+          id: student.id, name: student.name, level: student.level,
+          totalAssignments: studentAssignments.length,
+          totalSteps,
+          completedSteps,
+          completionPct: totalSteps > 0 ? Math.round(completedSteps / totalSteps * 100) : 0,
+          totalPracticeMinutes: Math.round(totalPracticeSeconds / 60),
+          latestWeek: latestAssignment ? latestAssignment.weekLabel : "No assignments",
+          latestProgress: latestSteps.length > 0 ? (latestCompleted + "/" + latestSteps.length) : "-",
+          latestPct: latestSteps.length > 0 ? Math.round(latestCompleted / latestSteps.length * 100) : 0,
+          daysSinceActivity,
+          status: daysSinceActivity === null ? "fresh" : daysSinceActivity <= 3 ? "active" : daysSinceActivity <= 7 ? "quiet" : "inactive"
+        };
+      });
+
+      const activeCount = studentStats.filter(s => s.status === "active").length;
+      const quietCount = studentStats.filter(s => s.status === "quiet").length;
+      const inactiveCount = studentStats.filter(s => s.status === "inactive" || s.status === "fresh").length;
+      const totalPractice = studentStats.reduce((sum, s) => sum + s.totalPracticeMinutes, 0);
+
+      const statusColors = { active: "#10b981", quiet: "#f59e0b", inactive: "#94a3b8", fresh: "#94a3b8" };
+      const statusLabels = { active: "Active", quiet: "Quiet", inactive: "Inactive", fresh: "New" };
+
+      return (
+        <div>
+          <h2 style={styles.pageTitle}>Dashboard</h2>
+          <p style={styles.pageSubtitle}>Overview of all your students</p>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "16px", marginBottom: "28px" }}>
+            {[
+              { label: "Students", value: students.length, color: "#1e293b" },
+              { label: "Active", value: activeCount, color: "#10b981" },
+              { label: "Quiet (4-7d)", value: quietCount, color: "#f59e0b" },
+              { label: "Inactive (7d+)", value: inactiveCount, color: "#94a3b8" },
+            ].map((stat, i) => (
+              <div key={i} style={{ ...styles.card, textAlign: "center", padding: "16px" }}>
+                <div style={{ fontSize: "28px", fontWeight: 700, color: stat.color, fontFamily: "'JetBrains Mono', monospace" }}>{stat.value}</div>
+                <div style={{ fontSize: "11px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "1px", marginTop: "4px" }}>{stat.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {studentStats.length === 0 ? (
+            <div style={styles.emptyState}>
+              <div style={styles.emptyTitle}>No students yet</div>
+              <p>Add students from the Students tab to see their progress here.</p>
+            </div>
+          ) : (
+            <div style={{ ...styles.card, overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px" }}>
+                <thead>
+                  <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
+                    {["Student", "Status", "Current Week", "Progress", "Last Active"].map(h => (
+                      <th key={h} style={{ textAlign: "left", padding: "10px 12px", fontSize: "11px", fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "1px" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {studentStats.map(s => (
+                    <tr key={s.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                      <td style={{ padding: "12px" }}>
+                        <div style={{ fontWeight: 600, color: "#1e293b" }}>{s.name}</div>
+                        {s.level && <div style={{ fontSize: "12px", color: "#94a3b8" }}>{s.level}</div>}
+                      </td>
+                      <td style={{ padding: "12px" }}>
+                        <span style={{ display: "inline-block", padding: "2px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: 600, background: { active: "rgba(16,185,129,0.1)", quiet: "rgba(245,158,11,0.1)", inactive: "rgba(148,163,184,0.1)", fresh: "rgba(148,163,184,0.1)" }[s.status] || "rgba(148,163,184,0.1)", color: statusColors[s.status] }}>
+                          {statusLabels[s.status]}
+                        </span>
+                      </td>
+                      <td style={{ padding: "12px", color: "#64748b" }}>{s.latestWeek}</td>
+                      <td style={{ padding: "12px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <div style={{ ...styles.progressBar, flex: 1, maxWidth: "100px", marginTop: 0 }}>
+                            <div style={styles.progressFill(s.latestPct)} />
+                          </div>
+                          <span style={{ fontSize: "12px", color: "#64748b", fontFamily: "'JetBrains Mono', monospace" }}>{s.latestProgress}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: "12px", color: s.status === "inactive" ? "#f59e0b" : "#94a3b8", fontSize: "13px" }}>
+                        {s.daysSinceActivity === null ? "Never" : s.daysSinceActivity === 0 ? "Today" : s.daysSinceActivity === 1 ? "Yesterday" : s.daysSinceActivity + "d ago"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       );
@@ -2551,7 +3775,7 @@
 
       // UI state
       const [mode, setMode] = useState("teacher");
-      const [teacherPage, setTeacherPage] = useState("students");
+      const [teacherPage, setTeacherPage] = useState("dashboard");
       const [selectedStudentId, setSelectedStudentId] = useState(null);
       const [loading, setLoading] = useState(false);
       const [error, setError] = useState("");
@@ -2745,6 +3969,9 @@
             <span style={styles.logo}>My <span style={styles.logoAccent}>Woodshed</span> Music</span>
             <div style={{ display: "flex", alignItems: "center" }}>
               <nav style={styles.nav}>
+                <button style={styles.navBtn(teacherPage === "dashboard")} onClick={() => setTeacherPage("dashboard")}>
+                  <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg> Dashboard</span>
+                </button>
                 <button style={styles.navBtn(teacherPage === "students")} onClick={() => setTeacherPage("students")}>
                   <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><Icons.User /> Students</span>
                 </button>
@@ -2776,6 +4003,9 @@
           <div style={styles.container}>
             <ErrorBanner message={error} onDismiss={() => setError("")} />
 
+            {teacherPage === "dashboard" && (
+              <TeacherDashboard students={students} assignments={assignments} progress={progress} />
+            )}
             {teacherPage === "students" && (
               <TeacherStudents
                 students={students}
@@ -2807,6 +4037,9 @@
                 onRefreshContent={refreshContent}
               />
             )}
+          </div>
+          <div style={{ textAlign: "center", padding: "20px 0 12px", fontSize: "11px", color: "#94a3b8" }}>
+            &copy; {new Date().getFullYear()} Boing Media Ltd. Created by Dr Mark Baynes.
           </div>
         </div>
       );

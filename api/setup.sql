@@ -71,6 +71,8 @@ CREATE TABLE progress (
     completed TINYINT(1) DEFAULT 0,
     feedback ENUM('good','more_time','struggled','') DEFAULT '',
     feedback_note TEXT,
+    practice_seconds INT DEFAULT 0,
+    audio_url VARCHAR(500) DEFAULT NULL,
     completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY unique_progress (student_id, assignment_id, step_id),
     FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
