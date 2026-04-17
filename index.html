@@ -421,7 +421,7 @@
     // ADD CONTENT MODAL
     // ============================================================
 
-    function AddContentModal({ onClose, onAdd }) {
+    function AddContentModal({ onClose, onAdd, token }) {
       const [title, setTitle] = useState("");
       const [type, setType] = useState("Practice");
       const [track, setTrack] = useState("Foundation");
@@ -463,8 +463,11 @@
             <input style={styles.input} value={url} onChange={e => setUrl(e.target.value)} placeholder="https://youtube.com/..." />
           </div>
           <div style={styles.formGroup}>
-            <label style={styles.label}>Description / Instructions</label>
-            <textarea style={styles.textarea} value={description} onChange={e => setDescription(e.target.value)} placeholder="What should the student do with this?" />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+              <label style={{ ...styles.label, marginBottom: 0 }}>Description / Instructions</label>
+              <AIExpandButton text={description || title} onExpanded={text => setDescription(text)} token={token} />
+            </div>
+            <textarea style={styles.textarea} value={description} onChange={e => setDescription(e.target.value)} placeholder="What should the student do with this? (type shorthand and click Expand)" />
           </div>
           <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
             <button style={styles.btnGhost} onClick={onClose}>Cancel</button>
@@ -1262,8 +1265,483 @@
       );
     }
 
+
+    // ============================================================
+    // AI HELPER — call AI endpoints
+    // ============================================================
+
+    async function aiCall(action, data, token) {
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(`${API_BASE}ai.php?action=${action}`, {
+        method: 'POST', headers, body: JSON.stringify(data)
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'AI request failed');
+      return result;
+    }
+
+    // ============================================================
+    // AI ICONS
+    // ============================================================
+
+    const AIIcons = {
+      Sparkle: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z"/></svg>,
+      Youtube: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="4" width="20" height="16" rx="4"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor"/></svg>,
+      Wand: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M15 4V2m0 2v2m0-2h2m-2 0h-2"/><path d="M8.5 8.5l-5 5L17 20l5-5L8.5 8.5z"/></svg>,
+      Layers: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>,
+      Zap: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
+    };
+
+    const aiButtonStyle = {
+      padding: "8px 16px", borderRadius: "10px", border: "1.5px solid rgba(138,90,200,0.3)",
+      cursor: "pointer", fontSize: "13px", fontWeight: 500, display: "flex", alignItems: "center", gap: "6px",
+      background: "linear-gradient(135deg, rgba(138,90,200,0.08), rgba(90,120,200,0.08))",
+      color: "#6a4aaa", transition: "all 0.2s"
+    };
+
+    const aiButtonActiveStyle = {
+      ...aiButtonStyle,
+      background: "linear-gradient(135deg, #7a4aca, #5a70ca)",
+      color: "#fff", border: "1.5px solid transparent"
+    };
+
+    // ============================================================
+    // AI CONTENT GENERATOR MODAL
+    // ============================================================
+
+    function AIContentGeneratorModal({ onClose, onAdd, token }) {
+      const [description, setDescription] = useState("");
+      const [loading, setLoading] = useState(false);
+      const [result, setResult] = useState(null);
+      const [error, setError] = useState("");
+
+      const handleGenerate = async () => {
+        if (!description.trim()) return;
+        setLoading(true);
+        setError("");
+        try {
+          const data = await aiCall('generate_content', { description }, token);
+          setResult(data.content);
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const handleAccept = () => {
+        if (result) onAdd(result);
+      };
+
+      return (
+        <Modal onClose={onClose}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
+            <span style={{ color: "#7a4aca" }}><AIIcons.Sparkle /></span>
+            <span style={styles.modalTitle}>AI Content Generator</span>
+          </div>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Describe what you want to create</label>
+            <textarea style={styles.textarea} value={description} onChange={e => setDescription(e.target.value)}
+              placeholder="e.g. ii-V-I rootless voicings in all keys, start with left hand shells&#10;or: Autumn Leaves - melody with guide tones, medium swing&#10;or: Blues scale workout for beginners" />
+          </div>
+          {!result && (
+            <button style={{ ...aiButtonActiveStyle, width: "100%", justifyContent: "center", padding: "12px", opacity: loading ? 0.7 : 1 }}
+              onClick={handleGenerate} disabled={loading}>
+              <AIIcons.Sparkle /> {loading ? "Generating..." : "Generate Content"}
+            </button>
+          )}
+          {error && <ErrorBanner message={error} onDismiss={() => setError("")} />}
+          {result && (
+            <div style={{ marginTop: "16px" }}>
+              <div style={styles.card}>
+                <div style={styles.contentTypeIcon}>{result.type}</div>
+                <div style={{ fontSize: "15px", fontWeight: 500, color: "#3d2e1e", marginBottom: "6px" }}>{result.title}</div>
+                <span style={styles.tag(result.track)}>{result.track}</span>
+                <p style={{ fontSize: "13px", color: "#8a7560", marginTop: "10px", lineHeight: 1.5 }}>{result.description}</p>
+              </div>
+              <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+                <button style={styles.btnGhost} onClick={() => { setResult(null); }}>Regenerate</button>
+                <button style={styles.btnPrimary} onClick={handleAccept}>Add to Library</button>
+              </div>
+            </div>
+          )}
+        </Modal>
+      );
+    }
+
+    // ============================================================
+    // YOUTUBE IMPORT MODAL
+    // ============================================================
+
+    function YouTubeImportModal({ onClose, onAdd, token }) {
+      const [mode, setMode] = useState("single"); // single or bulk
+      const [url, setUrl] = useState("");
+      const [bulkUrls, setBulkUrls] = useState("");
+      const [loading, setLoading] = useState(false);
+      const [results, setResults] = useState([]);
+      const [error, setError] = useState("");
+
+      const handleSingleImport = async () => {
+        if (!url.trim()) return;
+        setLoading(true); setError("");
+        try {
+          const data = await aiCall('youtube_import', { url }, token);
+          setResults([{ youtube: data.youtube, content: data.content, selected: true }]);
+        } catch (err) { setError(err.message); }
+        finally { setLoading(false); }
+      };
+
+      const handleBulkImport = async () => {
+        const urls = bulkUrls.split('\n').map(u => u.trim()).filter(u => u);
+        if (urls.length === 0) return;
+        setLoading(true); setError("");
+        try {
+          const data = await aiCall('youtube_bulk_import', { urls }, token);
+          setResults(data.items.map(item => ({ ...item, selected: true })));
+        } catch (err) { setError(err.message); }
+        finally { setLoading(false); }
+      };
+
+      const toggleSelect = (i) => {
+        const updated = [...results];
+        updated[i].selected = !updated[i].selected;
+        setResults(updated);
+      };
+
+      const handleAddSelected = () => {
+        results.filter(r => r.selected && r.content && !r.error).forEach(r => {
+          onAdd({ ...r.content, url: r.youtube.url });
+        });
+      };
+
+      return (
+        <Modal onClose={onClose}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
+            <span style={{ color: "#c44040" }}><AIIcons.Youtube /></span>
+            <span style={styles.modalTitle}>YouTube Import</span>
+          </div>
+
+          <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+            <button onClick={() => setMode("single")} style={mode === "single" ? aiButtonActiveStyle : aiButtonStyle}>Single Video</button>
+            <button onClick={() => setMode("bulk")} style={mode === "bulk" ? aiButtonActiveStyle : aiButtonStyle}>Bulk Import</button>
+          </div>
+
+          {mode === "single" ? (
+            <div style={styles.formGroup}>
+              <label style={styles.label}>YouTube URL</label>
+              <input style={styles.input} value={url} onChange={e => setUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..." />
+            </div>
+          ) : (
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Paste YouTube URLs (one per line)</label>
+              <textarea style={{ ...styles.textarea, minHeight: "120px" }} value={bulkUrls} onChange={e => setBulkUrls(e.target.value)}
+                placeholder="https://youtube.com/watch?v=abc123&#10;https://youtube.com/watch?v=def456&#10;https://youtu.be/ghi789" />
+            </div>
+          )}
+
+          {results.length === 0 && (
+            <button style={{ ...aiButtonActiveStyle, width: "100%", justifyContent: "center", padding: "12px", opacity: loading ? 0.7 : 1 }}
+              onClick={mode === "single" ? handleSingleImport : handleBulkImport} disabled={loading}>
+              <AIIcons.Sparkle /> {loading ? `Importing${mode === "bulk" ? ` (${bulkUrls.split('\n').filter(u => u.trim()).length} videos)` : ""}...` : "Import & Describe"}
+            </button>
+          )}
+
+          {error && <ErrorBanner message={error} onDismiss={() => setError("")} />}
+
+          {results.length > 0 && (
+            <div style={{ marginTop: "16px" }}>
+              {results.map((r, i) => (
+                <div key={i} style={{ ...styles.card, opacity: r.selected ? 1 : 0.5, cursor: "pointer" }} onClick={() => toggleSelect(i)}>
+                  {r.error ? (
+                    <div style={{ color: "#a04040", fontSize: "13px" }}>Failed: {r.url || r.error}</div>
+                  ) : (
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                        <div style={{ ...styles.stepCheck(r.selected), width: "22px", height: "22px" }}>
+                          {r.selected && <Icons.Check />}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={styles.contentTypeIcon}>{r.content?.type}</div>
+                          <div style={{ fontSize: "14px", fontWeight: 500, color: "#3d2e1e" }}>{r.content?.title}</div>
+                        </div>
+                        <span style={styles.tag(r.content?.track)}>{r.content?.track}</span>
+                      </div>
+                      <p style={{ fontSize: "12px", color: "#8a7560", lineHeight: 1.4, marginLeft: "30px" }}>{r.content?.description}</p>
+                      {r.youtube?.author && <div style={{ fontSize: "11px", color: "#b8863e", marginTop: "4px", marginLeft: "30px" }}>by {r.youtube.author}</div>}
+                    </div>
+                  )}
+                </div>
+              ))}
+              <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+                <button style={styles.btnGhost} onClick={() => setResults([])}>Start Over</button>
+                <button style={styles.btnPrimary} onClick={handleAddSelected}>
+                  Add {results.filter(r => r.selected && !r.error).length} to Library
+                </button>
+              </div>
+            </div>
+          )}
+        </Modal>
+      );
+    }
+
+    // ============================================================
+    // BULK CONTENT GENERATOR MODAL
+    // ============================================================
+
+    function BulkGenerateModal({ onClose, onAdd, token }) {
+      const [category, setCategory] = useState("");
+      const [details, setDetails] = useState("");
+      const [loading, setLoading] = useState(false);
+      const [items, setItems] = useState([]);
+      const [error, setError] = useState("");
+
+      const handleGenerate = async () => {
+        if (!category.trim()) return;
+        setLoading(true); setError("");
+        try {
+          const data = await aiCall('bulk_generate', { category, details }, token);
+          setItems((data.items || []).map(item => ({ ...item, selected: true })));
+        } catch (err) { setError(err.message); }
+        finally { setLoading(false); }
+      };
+
+      const toggleSelect = (i) => {
+        const updated = [...items];
+        updated[i].selected = !updated[i].selected;
+        setItems(updated);
+      };
+
+      const handleAddSelected = () => {
+        items.filter(it => it.selected).forEach(it => {
+          const { selected, ...content } = it;
+          onAdd(content);
+        });
+      };
+
+      const suggestions = [
+        "Major scales", "Minor pentatonic scales", "7th chord voicings", "ii-V-I progressions",
+        "Blues licks", "Shell voicings", "Modes of the major scale", "Rootless voicings",
+        "Pop chord progressions", "Left hand comping patterns", "Jazz standards - melody"
+      ];
+
+      return (
+        <Modal onClose={onClose}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
+            <span style={{ color: "#5a70ca" }}><AIIcons.Layers /></span>
+            <span style={styles.modalTitle}>Bulk Generate Content</span>
+          </div>
+          <p style={{ fontSize: "13px", color: "#8a7560", marginBottom: "16px" }}>Generate a whole set of exercises or content items at once. AI will create entries for all 12 keys or relevant variations.</p>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Category</label>
+            <input style={styles.input} value={category} onChange={e => setCategory(e.target.value)} placeholder="e.g. Major 7th chord voicings" />
+          </div>
+
+          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "16px" }}>
+            {suggestions.map(s => (
+              <button key={s} onClick={() => setCategory(s)} style={{
+                padding: "4px 12px", borderRadius: "20px", border: "1px solid rgba(138,90,200,0.2)",
+                background: category === s ? "rgba(138,90,200,0.1)" : "transparent",
+                color: "#6a4aaa", fontSize: "11px", cursor: "pointer"
+              }}>{s}</button>
+            ))}
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Additional details (optional)</label>
+            <input style={styles.input} value={details} onChange={e => setDetails(e.target.value)} placeholder="e.g. Focus on left hand, include fingering suggestions" />
+          </div>
+
+          {items.length === 0 && (
+            <button style={{ ...aiButtonActiveStyle, width: "100%", justifyContent: "center", padding: "12px", opacity: loading ? 0.7 : 1 }}
+              onClick={handleGenerate} disabled={loading}>
+              <AIIcons.Sparkle /> {loading ? "Generating batch..." : "Generate Content Set"}
+            </button>
+          )}
+
+          {error && <ErrorBanner message={error} onDismiss={() => setError("")} />}
+
+          {items.length > 0 && (
+            <div style={{ marginTop: "16px", maxHeight: "400px", overflowY: "auto" }}>
+              <div style={{ fontSize: "13px", color: "#6a4aaa", fontWeight: 500, marginBottom: "12px" }}>
+                {items.length} items generated — click to select/deselect
+              </div>
+              {items.map((item, i) => (
+                <div key={i} onClick={() => toggleSelect(i)} style={{
+                  padding: "10px 14px", borderRadius: "10px", marginBottom: "6px", cursor: "pointer",
+                  background: item.selected ? "rgba(138,90,200,0.06)" : "#fff",
+                  border: item.selected ? "1.5px solid rgba(138,90,200,0.25)" : "1.5px solid rgba(180,130,60,0.08)",
+                  display: "flex", alignItems: "center", gap: "10px"
+                }}>
+                  <div style={{ ...styles.stepCheck(item.selected), width: "22px", height: "22px" }}>
+                    {item.selected && <Icons.Check />}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: "13px", fontWeight: 500, color: "#3d2e1e" }}>{item.title}</div>
+                    <div style={{ fontSize: "11px", color: "#8a7560" }}>{item.type} · {item.track}</div>
+                  </div>
+                </div>
+              ))}
+              <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "12px" }}>
+                <button style={styles.btnGhost} onClick={() => setItems([])}>Regenerate</button>
+                <button style={styles.btnPrimary} onClick={handleAddSelected}>
+                  Add {items.filter(it => it.selected).length} to Library
+                </button>
+              </div>
+            </div>
+          )}
+        </Modal>
+      );
+    }
+
+    // ============================================================
+    // AI PATH BUILDER MODAL
+    // ============================================================
+
+    function AIPathBuilderModal({ onClose, onBuild, students, token }) {
+      const [brief, setBrief] = useState("");
+      const [studentId, setStudentId] = useState(students[0]?.id || "");
+      const [studentLevel, setStudentLevel] = useState(students[0]?.level || "");
+      const [loading, setLoading] = useState(false);
+      const [path, setPath] = useState(null);
+      const [error, setError] = useState("");
+
+      const handleStudentChange = (id) => {
+        setStudentId(id);
+        const s = students.find(st => st.id === id);
+        setStudentLevel(s?.level || "");
+      };
+
+      const handleGenerate = async () => {
+        if (!brief.trim()) return;
+        setLoading(true); setError("");
+        try {
+          const data = await aiCall('build_path', { brief, student_level: studentLevel }, token);
+          setPath(data.path);
+        } catch (err) { setError(err.message); }
+        finally { setLoading(false); }
+      };
+
+      const handleAccept = () => {
+        if (path) onBuild({ studentId, path });
+      };
+
+      const suggestions = [
+        "Blues comping fundamentals", "Introduction to jazz standards",
+        "Pop song accompaniment skills", "Technique and scales warmup",
+        "Chord voicing development", "Ear training and transcription",
+        "Sight reading practice", "Improv over ii-V-I"
+      ];
+
+      return (
+        <Modal onClose={onClose}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
+            <span style={{ color: "#5a9a7a" }}><AIIcons.Zap /></span>
+            <span style={styles.modalTitle}>AI Practice Path Builder</span>
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Student</label>
+            <select style={{ ...styles.select, width: "100%" }} value={studentId} onChange={e => handleStudentChange(e.target.value)}>
+              {students.map(s => <option key={s.id} value={s.id}>{s.name} {s.level ? `(${s.level})` : ''}</option>)}
+            </select>
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>What should this week focus on?</label>
+            <textarea style={styles.textarea} value={brief} onChange={e => setBrief(e.target.value)}
+              placeholder="e.g. Blues in F - start with the scale, learn a simple head, work on comping patterns" />
+          </div>
+
+          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "16px" }}>
+            {suggestions.map(s => (
+              <button key={s} onClick={() => setBrief(s)} style={{
+                padding: "4px 12px", borderRadius: "20px", border: "1px solid rgba(90,154,122,0.25)",
+                background: brief === s ? "rgba(90,154,122,0.1)" : "transparent",
+                color: "#3a7a5a", fontSize: "11px", cursor: "pointer"
+              }}>{s}</button>
+            ))}
+          </div>
+
+          {!path && (
+            <button style={{ ...styles.btnSuccess, width: "100%", display: "flex", justifyContent: "center", gap: "6px", padding: "12px", opacity: loading ? 0.7 : 1 }}
+              onClick={handleGenerate} disabled={loading}>
+              <AIIcons.Zap /> {loading ? "Building practice path..." : "Build Practice Path"}
+            </button>
+          )}
+
+          {error && <ErrorBanner message={error} onDismiss={() => setError("")} />}
+
+          {path && (
+            <div style={{ marginTop: "16px" }}>
+              <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "18px", color: "#3d2e1e", marginBottom: "16px" }}>
+                {path.week_label}
+              </div>
+              {(path.steps || []).map((step, i) => (
+                <div key={i} style={{ padding: "10px 14px", borderRadius: "10px", marginBottom: "6px", background: "#fff", border: "1.5px solid rgba(180,130,60,0.08)", display: "flex", gap: "10px", alignItems: "flex-start" }}>
+                  <div style={{ width: "24px", height: "24px", borderRadius: "50%", background: step.source === "new" ? "rgba(138,90,200,0.15)" : "rgba(90,154,122,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 700, color: step.source === "new" ? "#6a4aaa" : "#3a7a5a", flexShrink: 0, marginTop: "2px" }}>
+                    {i + 1}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                      <span style={styles.contentTypeIcon}>{step.type}</span>
+                      <span style={styles.tag(step.track)}>{step.track}</span>
+                      {step.source === "new" && <span style={{ fontSize: "10px", color: "#6a4aaa", fontWeight: 500 }}>NEW</span>}
+                    </div>
+                    <div style={{ fontSize: "13px", fontWeight: 500, color: "#3d2e1e" }}>{step.title}</div>
+                    {step.notes && <div style={{ fontSize: "12px", color: "#8a7560", marginTop: "4px" }}>{step.notes}</div>}
+                  </div>
+                </div>
+              ))}
+              <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "16px" }}>
+                <button style={styles.btnGhost} onClick={() => setPath(null)}>Regenerate</button>
+                <button style={styles.btnPrimary} onClick={handleAccept}>Create Assignment</button>
+              </div>
+            </div>
+          )}
+        </Modal>
+      );
+    }
+
+    // ============================================================
+    // AI EXPAND SHORTHAND BUTTON (inline helper)
+    // ============================================================
+
+    function AIExpandButton({ text, onExpanded, token }) {
+      const [loading, setLoading] = useState(false);
+
+      const handleExpand = async (e) => {
+        e.stopPropagation();
+        if (!text.trim() || loading) return;
+        setLoading(true);
+        try {
+          const data = await aiCall('expand_shorthand', { shorthand: text }, token);
+          if (data.expanded) onExpanded(data.expanded);
+        } catch (err) { /* silently fail */ }
+        finally { setLoading(false); }
+      };
+
+      if (!text.trim()) return null;
+
+      return (
+        <button onClick={handleExpand} disabled={loading} title="AI: Expand shorthand into student instructions" style={{
+          padding: "4px 10px", borderRadius: "8px", border: "1px solid rgba(138,90,200,0.25)",
+          background: loading ? "rgba(138,90,200,0.1)" : "transparent",
+          color: "#6a4aaa", fontSize: "11px", cursor: loading ? "wait" : "pointer",
+          display: "inline-flex", alignItems: "center", gap: "4px"
+        }}>
+          <AIIcons.Sparkle /> {loading ? "..." : "Expand"}
+        </button>
+      );
+    }
+
+
     function TeacherLibrary({ contentLibrary, token, onRefreshContent }) {
       const [showAdd, setShowAdd] = useState(false);
+      const [showAIGenerate, setShowAIGenerate] = useState(false);
+      const [showYouTubeImport, setShowYouTubeImport] = useState(false);
+      const [showBulkGenerate, setShowBulkGenerate] = useState(false);
       const [filter, setFilter] = useState("All");
       const [error, setError] = useState("");
 
@@ -1287,9 +1765,16 @@
         }
       };
 
+      const handleAIAdd = async (data) => {
+        await handleAddContent(data);
+        setShowAIGenerate(false);
+        setShowYouTubeImport(false);
+        setShowBulkGenerate(false);
+      };
+
       return (
         <div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "32px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
             <div>
               <h1 style={styles.pageTitle}>Content Library</h1>
               <p style={styles.pageSubtitle}>{contentLibrary.length} items -- grows every time you teach</p>
@@ -1297,6 +1782,14 @@
             <button style={styles.btnPrimary} onClick={() => setShowAdd(true)}>
               <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><Icons.Plus /> Quick Capture</span>
             </button>
+          </div>
+
+          {/* AI Action Bar */}
+          <div style={{ display: "flex", gap: "8px", marginBottom: "24px", flexWrap: "wrap", padding: "16px", background: "linear-gradient(135deg, rgba(138,90,200,0.04), rgba(90,120,200,0.04))", borderRadius: "12px", border: "1px solid rgba(138,90,200,0.1)" }}>
+            <span style={{ fontSize: "12px", fontWeight: 600, color: "#6a4aaa", display: "flex", alignItems: "center", gap: "4px", marginRight: "8px" }}><AIIcons.Sparkle /> AI Tools:</span>
+            <button onClick={() => setShowAIGenerate(true)} style={aiButtonStyle}><AIIcons.Wand /> Describe & Create</button>
+            <button onClick={() => setShowYouTubeImport(true)} style={aiButtonStyle}><AIIcons.Youtube /> YouTube Import</button>
+            <button onClick={() => setShowBulkGenerate(true)} style={aiButtonStyle}><AIIcons.Layers /> Bulk Generate</button>
           </div>
 
           <ErrorBanner message={error} onDismiss={() => setError("")} />
@@ -1339,13 +1832,17 @@
             </div>
           )}
 
-          {showAdd && <AddContentModal onClose={() => setShowAdd(false)} onAdd={handleAddContent} />}
+          {showAdd && <AddContentModal onClose={() => setShowAdd(false)} onAdd={handleAddContent} token={token} />}
+          {showAIGenerate && <AIContentGeneratorModal onClose={() => setShowAIGenerate(false)} onAdd={handleAIAdd} token={token} />}
+          {showYouTubeImport && <YouTubeImportModal onClose={() => setShowYouTubeImport(false)} onAdd={handleAIAdd} token={token} />}
+          {showBulkGenerate && <BulkGenerateModal onClose={() => setShowBulkGenerate(false)} onAdd={handleAIAdd} token={token} />}
         </div>
       );
     }
 
-    function TeacherAssignments({ students, contentLibrary, assignments, progress, token, onRefreshAssignments }) {
+    function TeacherAssignments({ students, contentLibrary, assignments, progress, token, onRefreshAssignments, onRefreshContent }) {
       const [showBuilder, setShowBuilder] = useState(false);
+      const [showAIPathBuilder, setShowAIPathBuilder] = useState(false);
       const [editingAssignment, setEditingAssignment] = useState(null);
       const [error, setError] = useState("");
 
@@ -1391,9 +1888,14 @@
               <h1 style={styles.pageTitle}>Assignments</h1>
               <p style={styles.pageSubtitle}>Weekly practice paths for your students</p>
             </div>
-            <button style={styles.btnPrimary} onClick={() => setShowBuilder(true)}>
-              <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><Icons.Plus /> New Assignment</span>
-            </button>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button onClick={() => setShowAIPathBuilder(true)} style={aiButtonStyle}>
+                <AIIcons.Zap /> AI Build Path
+              </button>
+              <button style={styles.btnPrimary} onClick={() => setShowBuilder(true)}>
+                <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><Icons.Plus /> New Assignment</span>
+              </button>
+            </div>
           </div>
 
           <ErrorBanner message={error} onDismiss={() => setError("")} />
@@ -1463,6 +1965,42 @@
               students={students}
               contentLibrary={contentLibrary}
               existingAssignment={editingAssignment}
+            />
+          )}
+          {showAIPathBuilder && (
+            <AIPathBuilderModal
+              onClose={() => setShowAIPathBuilder(false)}
+              onBuild={async ({ studentId, path }) => {
+                // Create new content items for "new" steps first
+                const stepEntries = [];
+                for (const step of (path.steps || [])) {
+                  if (step.source === "new" && step.new_description) {
+                    try {
+                      const newContent = await apiFetch('content.php', {
+                        method: 'POST',
+                        body: JSON.stringify({ title: step.title, type: step.type, track: step.track, description: step.new_description })
+                      }, token);
+                      stepEntries.push({ contentId: newContent.id, notes: step.notes || "" });
+                    } catch (e) {
+                      setError("Failed to create content: " + step.title);
+                    }
+                  } else if (step.content_id) {
+                    stepEntries.push({ contentId: step.content_id, notes: step.notes || "" });
+                  }
+                }
+                // Create the assignment
+                if (stepEntries.length > 0) {
+                  await handleSaveAssignment({
+                    studentId,
+                    weekLabel: path.week_label || "AI-generated practice path",
+                    steps: stepEntries.map((s, i) => ({ id: generateId(), ...s, order: i + 1 }))
+                  });
+                  if (onRefreshContent) await onRefreshContent();
+                }
+                setShowAIPathBuilder(false);
+              }}
+              students={students}
+              token={token}
             />
           )}
         </div>
@@ -2018,6 +2556,7 @@
                 progress={progress}
                 token={token}
                 onRefreshAssignments={refreshAssignments}
+                onRefreshContent={refreshContent}
               />
             )}
           </div>
