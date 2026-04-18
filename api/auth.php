@@ -117,12 +117,19 @@ switch ($action) {
             jsonResponse(['error' => 'Invalid PIN'], 401);
         }
 
+        // Get teacher name for student UI
+        $teacherStmt = $db->prepare('SELECT name FROM teachers WHERE id = ?');
+        $teacherStmt->execute([$student['teacher_id']]);
+        $teacherRow = $teacherStmt->fetch();
+        $teacherName = $teacherRow ? $teacherRow['name'] : 'your teacher';
+
         $token = createToken(['student_id' => $student['id'], 'teacher_id' => $student['teacher_id'], 'role' => 'student']);
         jsonResponse(['token' => $token, 'student' => [
             'id' => $student['id'],
             'name' => $student['name'],
             'level' => $student['level'],
-            'teacher_id' => $student['teacher_id']
+            'teacher_id' => $student['teacher_id'],
+            'teacher_name' => $teacherName
         ]]);
         break;
 

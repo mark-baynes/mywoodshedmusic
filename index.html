@@ -3219,7 +3219,7 @@
                   <polygon points="5 3 19 12 5 21 5 3"/>
                 </svg>
                 <div style={{ fontSize: "16px", fontWeight: 500, marginBottom: "8px" }}>No backing tracks yet</div>
-                <div style={{ fontSize: "13px" }}>Your teacher can add backing tracks from the library, or paste a YouTube URL above</div>
+                <div style={{ fontSize: "13px" }}>{teacherName} can add backing tracks from the library, or paste a YouTube URL above</div>
                 <CopyrightNotice style={{ marginTop: "16px" }} />
               </div>
             )}
@@ -3542,7 +3542,7 @@
           </div>
 
           <div>
-            <label style={styles.label}>Anything else your teacher should know?</label>
+            <label style={styles.label}>{`Anything else ${teacherName} should know?`}</label>
             <textarea value={prefs.free_notes} onChange={e => setPrefs(p => ({...p, free_notes: e.target.value}))}
               placeholder="e.g. I have a gig coming up, I struggle with reading, I get nervous performing..."
               rows={3} style={{ ...styles.input, resize: "vertical", marginTop: "6px", fontSize: "13px" }} />
@@ -3584,7 +3584,7 @@
       return (
         <div style={{ ...styles.card, border: "2px solid rgba(217,119,6,0.2)", background: "rgba(217,119,6,0.03)" }}>
           <h3 style={{ fontSize: "16px", fontWeight: 600, color: "#1e293b", marginBottom: "4px" }}>How was your practice this week?</h3>
-          <p style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "16px" }}>Quick check-in to help your teacher fine-tune your assignments</p>
+          <p style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "16px" }}>Quick check-in to help {teacherName} fine-tune your assignments</p>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
             <div>
@@ -5637,7 +5637,7 @@
     // STUDENT VIEW (mobile-optimised, with toolbox tabs)
     // ============================================================
 
-    function StudentView({ studentId, student, token, onBack, isStudentAuth }) {
+    function StudentView({ studentId, student, token, onBack, isStudentAuth, teacherName: teacherNameProp }) {
       const [viewingStudentLesson, setViewingStudentLesson] = useState(null);
       const timerSecondsRef = useRef({});
       const [assignments, setAssignments] = useState([]);
@@ -5656,6 +5656,7 @@
         try { return !sessionStorage.getItem('woodshed_student_tour_done'); } catch(e) { return true; }
       });
       const [showStudentHelp, setShowStudentHelp] = useState(false);
+      const teacherName = teacherNameProp || student?.teacher_name || "your teacher";
 
       const loadData = useCallback(async () => {
         try {
@@ -5918,7 +5919,7 @@
                 ) : (
                   <div style={styles.emptyState}>
                     <div style={styles.emptyTitle}>No practice assigned yet</div>
-                    <p>Your teacher hasn't set up this week's practice yet. Check back soon!</p>
+                    <p>{teacherName} hasn't set up this week's practice yet. Check back soon!</p>
                   </div>
                 )}
               </div>
@@ -5939,8 +5940,8 @@
                   <ProfileEditor token={token} isStudent={true} />
                 </div>
 
-                <h3 style={{ fontSize: "18px", fontWeight: 600, color: "#1e293b", marginBottom: "8px" }}>Learning Preferences <HelpTip text="Fill this in so your teacher can tailor assignments to how you learn. It also helps the AI give you better practice suggestions." /></h3>
-                <p style={{ fontSize: "14px", color: "#64748b", marginBottom: "12px" }}>Help your teacher understand how you learn best</p>
+                <h3 style={{ fontSize: "18px", fontWeight: 600, color: "#1e293b", marginBottom: "8px" }}>Learning Preferences <HelpTip text={`Fill this in so ${teacherName} can tailor assignments to how you learn. It also helps the AI give you better practice suggestions.`} /></h3>
+                <p style={{ fontSize: "14px", color: "#64748b", marginBottom: "12px" }}>Help {teacherName} understand how you learn best</p>
                 <div style={styles.card}>
                   <StudentPreferencesForm studentId={studentId} token={token} />
                 </div>
@@ -6060,7 +6061,7 @@
                     background: "none", border: "none", cursor: "pointer", fontSize: "20px", color: "#94a3b8", padding: "4px",
                   }}>&times;</button>
                 </div>
-                <HelpSection role="student" />
+                <HelpSection role="student" teacherName={teacherName} />
               </div>
             </div>
           )}
@@ -6068,7 +6069,7 @@
           {/* Student Guided Tour */}
           {showStudentTour && (
             <GuidedTour
-              steps={STUDENT_TOUR_STEPS}
+              steps={getStudentTourSteps(teacherName)}
               onClose={() => { setShowStudentTour(false); try { sessionStorage.setItem('woodshed_student_tour_done', '1'); } catch(e) {} }}
               onNavigate={(tab) => setActiveTab(tab)}
             />
@@ -6877,8 +6878,9 @@
     // HELP SECTION
     // ============================================================
 
-    function HelpSection({ role }) {
+    function HelpSection({ role, teacherName }) {
       const [expandedId, setExpandedId] = useState(null);
+      const tn = teacherName || "your teacher";
       const toggle = (id) => setExpandedId(expandedId === id ? null : id);
 
       const teacherFAQ = [
@@ -6927,11 +6929,11 @@
       const studentFAQ = [
         {
           id: "s1", q: "How do I complete a practice step?",
-          a: "Tap the circle next to each step to mark it done. You'll be asked for a quick self-assessment \u2014 how did it go? This helps your teacher track your progress."
+          a: "Tap the circle next to each step to mark it done. You'll be asked for a quick self-assessment \u2014 how did it go? This helps " + tn + " track your progress."
         },
         {
           id: "s2", q: "What is the practice timer?",
-          a: "Each step has a built-in timer that tracks how long you practise. It runs automatically while you're on a step. Your teacher can see your practice times."
+          a: "Each step has a built-in timer that tracks how long you practise. It runs automatically while you're on a step. " + tn + " can see your practice times."
         },
         {
           id: "s3", q: "How do I record myself?",
@@ -6943,7 +6945,7 @@
         },
         {
           id: "s5", q: "What tools are in the Toolbox?",
-          a: "Depending on what your teacher has enabled: Metronome for keeping time, Chord Reference for chord charts, Scale Reference for scale patterns, a Playable Keyboard, Ear Training exercises, and Backing Tracks to play along with."
+          a: "Depending on what " + tn + " has enabled: Metronome for keeping time, Chord Reference for chord charts, Scale Reference for scale patterns, a Playable Keyboard, Ear Training exercises, and Backing Tracks to play along with."
         },
         {
           id: "s6", q: "How do I see past assignments?",
@@ -6951,11 +6953,11 @@
         },
         {
           id: "s7", q: "What are Learning Preferences?",
-          a: "Go to your Profile tab and fill in the Learning Preferences form. This tells your teacher about your learning style, goals, and how much practice time you have. It helps them tailor your assignments."
+          a: "Go to your Profile tab and fill in the Learning Preferences form. This tells " + tn + " about your learning style, goals, and how much practice time you have. It helps them tailor your assignments."
         },
         {
           id: "s8", q: "I forgot my PIN. What do I do?",
-          a: "Ask your teacher \u2014 they can see your PIN on the Students page. They can also share your direct practice link which doesn't need a PIN."
+          a: "Ask " + tn + " \u2014 they can see your PIN on the Students page. They can also share your direct practice link which doesn't need a PIN."
         },
       ];
 
@@ -6969,7 +6971,7 @@
         "Try to practise a little bit every day rather than one long session.",
         "Use the timer to track your practice \u2014 it helps you build consistency.",
         "Record yourself regularly \u2014 listening back is one of the best ways to improve.",
-        "Fill in your Learning Preferences so your teacher can tailor your assignments.",
+        "Fill in your Learning Preferences so " + tn + " can tailor your assignments.",
         "Don't skip the self-assessment after each step \u2014 it helps you reflect on your progress.",
       ];
 
@@ -7086,10 +7088,10 @@
       },
     ];
 
-    const STUDENT_TOUR_STEPS = [
+    const getStudentTourSteps = (teacherName) => [
       {
         title: "Welcome to My Woodshed Music!",
-        body: "This is your practice hub. Your teacher sets up assignments for you each week, and you work through them here. Let's take a quick look around.",
+        body: `This is your practice hub. ${teacherName} sets up assignments for you each week, and you work through them here. Let's take a quick look around.`,
         icon: "sparkle",
       },
       {
@@ -7100,18 +7102,18 @@
       },
       {
         title: "Recording & Feedback",
-        body: "Many steps let you record yourself playing. Hit the microphone button to capture a take, then get AI feedback on your performance. Your teacher can listen to your recordings too.",
+        body: `Many steps let you record yourself playing. Hit the microphone button to capture a take, then get AI feedback on your performance. ${teacherName} can listen to your recordings too.`,
         icon: "mic",
       },
       {
         title: "Toolbox",
-        body: "Your practice toolkit: metronome, chord charts, scale references, a playable keyboard, ear training exercises, and backing tracks. Your teacher controls which tools are available to you.",
+        body: `Your practice toolkit: metronome, chord charts, scale references, a playable keyboard, ear training exercises, and backing tracks. ${teacherName} controls which tools are available to you.`,
         icon: "wrench",
         nav: "toolbox",
       },
       {
         title: "Profile & Preferences",
-        body: "Set up your profile and tell your teacher about your learning style. This helps them tailor your assignments and helps the AI give you better feedback.",
+        body: `Set up your profile and tell ${teacherName} about your learning style. This helps them tailor your assignments and helps the AI give you better feedback.`,
         icon: "user",
         nav: "profile",
       },
@@ -7123,7 +7125,7 @@
       },
       {
         title: "Ready to practise!",
-        body: "Start with your current assignment and work through the steps. Your teacher gets notified when you complete everything. Happy practising!",
+        body: `Start with your current assignment and work through the steps. ${teacherName} gets notified when you complete everything. Happy practising!`,
         icon: "check",
       },
     ];
@@ -7446,6 +7448,7 @@
             token={studentAuth.token}
             onBack={() => setStudentAuth(null)}
             isStudentAuth={true}
+            teacherName={studentAuth.student.teacher_name}
           />
         );
       }
@@ -7494,6 +7497,7 @@
             token={token}
             onBack={() => { setMode("teacher"); setSelectedStudentId(null); loadAllData(); }}
             isStudentAuth={false}
+            teacherName={teacher?.name}
           />
         );
       }
@@ -7604,7 +7608,7 @@
               <ToolboxEditor token={token} />
             )}
             {teacherPage === "help" && (
-              <HelpSection role="teacher" />
+              <HelpSection role="teacher" teacherName="you" />
             )}
             {teacherPage === "admin" && (teacher?.is_admin == true || teacher?.is_admin == 1) && (
               <AdminPanel token={token} />
