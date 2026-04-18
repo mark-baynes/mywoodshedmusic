@@ -1121,11 +1121,33 @@
     // CHORD SYMBOL REFERENCE
     // ============================================================
 
-    const NOTE_NAMES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+    const NOTE_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
     const NOTE_NAMES_SHARP = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
+    // Enharmonic-aware note naming: picks correct spelling based on key context
+    let ENHARMONIC_MAP = {
+      // Root index -> array of 12 note names (correct enharmonic spelling for that key)
+      0:  ['C',  'Db', 'D',  'Eb', 'E',  'F',  'F#', 'G',  'Ab', 'A',  'Bb', 'B'],   // C
+      1:  ['C',  'Db', 'D',  'Eb', 'E',  'F',  'Gb', 'G',  'Ab', 'A',  'Bb', 'B'],   // Db
+      2:  ['C',  'C#', 'D',  'Eb', 'E',  'F',  'F#', 'G',  'Ab', 'A',  'Bb', 'B'],   // D
+      3:  ['C',  'Db', 'D',  'Eb', 'Fb', 'F',  'Gb', 'G',  'Ab', 'A',  'Bb', 'Cb'],  // Eb
+      4:  ['C',  'C#', 'D',  'D#', 'E',  'F',  'F#', 'G',  'G#', 'A',  'A#', 'B'],   // E
+      5:  ['C',  'Db', 'D',  'Eb', 'E',  'F',  'Gb', 'G',  'Ab', 'A',  'Bb', 'B'],   // F
+      6:  ['C',  'C#', 'D',  'D#', 'E',  'E#', 'F#', 'G',  'G#', 'A',  'A#', 'B'],   // F#
+      7:  ['C',  'Db', 'D',  'Eb', 'E',  'F',  'F#', 'G',  'Ab', 'A',  'Bb', 'B'],   // G
+      8:  ['C',  'Db', 'D',  'Eb', 'E',  'F',  'Gb', 'G',  'Ab', 'A',  'Bb', 'B'],   // Ab
+      9:  ['C',  'C#', 'D',  'D#', 'E',  'F',  'F#', 'G',  'G#', 'A',  'Bb', 'B'],   // A
+      10: ['C',  'Db', 'D',  'Eb', 'E',  'F',  'Gb', 'G',  'Ab', 'A',  'Bb', 'Cb'],  // Bb
+      11: ['C',  'C#', 'D',  'D#', 'E',  'F',  'F#', 'G',  'G#', 'A',  'A#', 'B'],   // B
+    };
+
+    function getNoteName(noteIndex, rootIndex) {
+      const map = ENHARMONIC_MAP[rootIndex] || NOTE_NAMES;
+      return map[noteIndex % 12];
+    }
+
     // Intervals from root in semitones
-    const CHORD_TYPES = [
+    let CHORD_TYPES = [
       { name: "Major",        symbol: "",       intervals: [0, 4, 7],          labels: ["R", "3", "5"] },
       { name: "Minor",        symbol: "m",      intervals: [0, 3, 7],          labels: ["R", "b3", "5"] },
       { name: "Dominant 7",   symbol: "7",      intervals: [0, 4, 7, 10],      labels: ["R", "3", "5", "b7"] },
@@ -1228,15 +1250,16 @@
       );
     }
 
-    function ChordReference({ onBack }) {
+    function ChordReference({ onBack, allowedChords }) {
       const [rootIndex, setRootIndex] = useState(0);
       const [chordTypeIndex, setChordTypeIndex] = useState(0);
 
+      const filteredChords = allowedChords ? CHORD_TYPES.filter(c => allowedChords.includes(c.name)) : CHORD_TYPES;
       const root = rootIndex;
-      const chordType = CHORD_TYPES[chordTypeIndex];
+      const chordType = filteredChords[chordTypeIndex] || filteredChords[0] || CHORD_TYPES[0];
       const symbol = `${NOTE_NAMES[root]}${chordType.symbol}`;
       const noteIndices = chordType.intervals.map(i => (root + i) % 12);
-      const noteNames = chordType.intervals.map(i => NOTE_NAMES[(root + i) % 12]);
+      const noteNames = chordType.intervals.map(i => getNoteName((root + i) % 12, root));
 
       return (
         <div style={{ ...styles.app, minHeight: "100vh" }}>
@@ -1267,7 +1290,7 @@
             <div className="student-card" style={styles.card}>
               <label style={styles.label}>Chord Type</label>
               <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                {CHORD_TYPES.map((ct, i) => (
+                {filteredChords.map((ct, i) => (
                   <button key={i} onClick={() => setChordTypeIndex(i)} style={{
                     minHeight: 40, padding: "6px 14px", borderRadius: "10px", border: "none", cursor: "pointer",
                     fontSize: "13px", fontWeight: 500,
@@ -1308,7 +1331,7 @@
     // SCALE DATA & REFERENCE
     // ============================================================
 
-    const SCALE_TYPES = [
+    let SCALE_TYPES = [
       { name: "Major", intervals: [0,2,4,5,7,9,11], labels: ["1","2","3","4","5","6","7"] },
       { name: "Natural Minor", intervals: [0,2,3,5,7,8,10], labels: ["1","2","b3","4","5","b6","b7"] },
       { name: "Dorian", intervals: [0,2,3,5,7,9,10], labels: ["1","2","b3","4","5","6","b7"] },
@@ -1326,13 +1349,14 @@
       { name: "Bebop Dominant", intervals: [0,2,4,5,7,9,10,11], labels: ["1","2","3","4","5","6","b7","7"] },
     ];
 
-    function ScaleReference({ onBack }) {
+    function ScaleReference({ onBack, allowedScales }) {
       const [rootIndex, setRootIndex] = useState(0);
       const [scaleTypeIndex, setScaleTypeIndex] = useState(0);
 
-      const scaleType = SCALE_TYPES[scaleTypeIndex];
+      const filteredScales = allowedScales ? SCALE_TYPES.filter(s => allowedScales.includes(s.name)) : SCALE_TYPES;
+      const scaleType = filteredScales[scaleTypeIndex] || filteredScales[0] || SCALE_TYPES[0];
       const noteIndices = scaleType.intervals.map(i => (rootIndex + i) % 12);
-      const noteNames = scaleType.intervals.map(i => NOTE_NAMES[(rootIndex + i) % 12]);
+      const noteNames = scaleType.intervals.map(i => getNoteName((rootIndex + i) % 12, rootIndex));
 
       return (
         <div style={{ ...styles.app, minHeight: "100vh" }}>
@@ -1361,7 +1385,7 @@
             <div className="student-card" style={styles.card}>
               <label style={styles.label}>Scale Type</label>
               <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                {SCALE_TYPES.map((st, i) => (
+                {filteredScales.map((st, i) => (
                   <button key={i} onClick={() => setScaleTypeIndex(i)} style={{
                     minHeight: 40, padding: "6px 14px", borderRadius: "10px", border: "none", cursor: "pointer",
                     fontSize: "13px", fontWeight: 500,
@@ -2321,6 +2345,143 @@
               </div>
             )
           )}
+
+          {tab === "toolbox" && (
+            <StudentToolboxAccess studentId={studentId} studentName={studentName} token={token} />
+          )}
+        </div>
+      );
+    }
+
+    // ============================================================
+    // STUDENT TOOLBOX ACCESS (per-student scale/chord visibility)
+    // ============================================================
+
+    function StudentToolboxAccess({ studentId, studentName, token }) {
+      const [allowedScales, setAllowedScales] = useState(null); // null = all allowed
+      const [allowedChords, setAllowedChords] = useState(null);
+      const [saving, setSaving] = useState(false);
+      const [saved, setSaved] = useState(false);
+      const [loaded, setLoaded] = useState(false);
+
+      useEffect(() => {
+        (async () => {
+          try {
+            const data = await apiFetch('learning.php?action=toolbox_access&student_id=' + studentId, {}, token);
+            if (data && data.allowed_scales) setAllowedScales(data.allowed_scales);
+            if (data && data.allowed_chords) setAllowedChords(data.allowed_chords);
+          } catch (e) { /* defaults: all allowed */ }
+          setLoaded(true);
+        })();
+      }, [studentId]);
+
+      const handleSave = async () => {
+        setSaving(true);
+        try {
+          await apiFetch('learning.php?action=toolbox_access&student_id=' + studentId, {
+            method: 'POST',
+            body: JSON.stringify({
+              allowed_scales: allowedScales,
+              allowed_chords: allowedChords,
+            })
+          }, token);
+          setSaved(true);
+          setTimeout(() => setSaved(false), 2000);
+        } catch (err) {
+          alert("Save failed: " + err.message);
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      const toggleScale = (name) => {
+        if (allowedScales === null) {
+          // Switching from "all" to selective — start with all checked, then uncheck this one
+          setAllowedScales(SCALE_TYPES.map(s => s.name).filter(n => n !== name));
+        } else if (allowedScales.includes(name)) {
+          setAllowedScales(allowedScales.filter(n => n !== name));
+        } else {
+          const newList = [...allowedScales, name];
+          // If all are now selected, revert to null (= all)
+          if (newList.length >= SCALE_TYPES.length) {
+            setAllowedScales(null);
+          } else {
+            setAllowedScales(newList);
+          }
+        }
+      };
+
+      const toggleChord = (name) => {
+        if (allowedChords === null) {
+          setAllowedChords(CHORD_TYPES.map(c => c.name).filter(n => n !== name));
+        } else if (allowedChords.includes(name)) {
+          setAllowedChords(allowedChords.filter(n => n !== name));
+        } else {
+          const newList = [...allowedChords, name];
+          if (newList.length >= CHORD_TYPES.length) {
+            setAllowedChords(null);
+          } else {
+            setAllowedChords(newList);
+          }
+        }
+      };
+
+      const isScaleAllowed = (name) => allowedScales === null || allowedScales.includes(name);
+      const isChordAllowed = (name) => allowedChords === null || allowedChords.includes(name);
+
+      if (!loaded) return <p style={{ color: "#94a3b8" }}>Loading...</p>;
+
+      return (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+            <div style={{ fontSize: "13px", color: "#64748b" }}>
+              Choose which scales and chords {studentName.split(" ")[0]} can see in their toolbox.
+              {allowedScales === null && allowedChords === null && " Currently showing all."}
+            </div>
+            <button style={{ ...styles.btnPrimary, opacity: saving ? 0.7 : 1 }} onClick={handleSave} disabled={saving}>
+              {saving ? "Saving..." : saved ? "Saved!" : "Save"}
+            </button>
+          </div>
+
+          <div style={styles.card}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+              <div style={{ fontSize: "14px", fontWeight: 600, color: "#1e293b" }}>Scales</div>
+              <button onClick={() => setAllowedScales(allowedScales === null ? [] : null)} style={{ fontSize: "12px", color: "#d97706", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+                {allowedScales === null ? "Deselect All" : "Select All"}
+              </button>
+            </div>
+            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+              {SCALE_TYPES.map(s => (
+                <button key={s.name} onClick={() => toggleScale(s.name)} style={{
+                  padding: "6px 14px", borderRadius: "8px", fontSize: "13px", cursor: "pointer",
+                  border: isScaleAllowed(s.name) ? "2px solid #10b981" : "1px solid #e2e8f0",
+                  background: isScaleAllowed(s.name) ? "rgba(16,185,129,0.08)" : "#fff",
+                  color: isScaleAllowed(s.name) ? "#059669" : "#94a3b8",
+                  fontWeight: isScaleAllowed(s.name) ? 600 : 400,
+                }}>{s.name}</button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ ...styles.card, marginTop: "12px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+              <div style={{ fontSize: "14px", fontWeight: 600, color: "#1e293b" }}>Chords</div>
+              <button onClick={() => setAllowedChords(allowedChords === null ? [] : null)} style={{ fontSize: "12px", color: "#d97706", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+                {allowedChords === null ? "Deselect All" : "Select All"}
+              </button>
+            </div>
+            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+              {CHORD_TYPES.map(c => (
+                <button key={c.name} onClick={() => toggleChord(c.name)} style={{
+                  padding: "6px 14px", borderRadius: "8px", fontSize: "13px", cursor: "pointer",
+                  border: isChordAllowed(c.name) ? "2px solid #10b981" : "1px solid #e2e8f0",
+                  background: isChordAllowed(c.name) ? "rgba(16,185,129,0.08)" : "#fff",
+                  color: isChordAllowed(c.name) ? "#059669" : "#94a3b8",
+                  fontWeight: isChordAllowed(c.name) ? 600 : 400,
+                }}>{c.name}</button>
+              ))}
+            </div>
+          </div>
         </div>
       );
     }
@@ -3439,6 +3600,8 @@
       const [pastAssignmentId, setPastAssignmentId] = useState(null);
       const [activeTab, setActiveTab] = useState("practice");
       const [activeTool, setActiveTool] = useState(null); // "metronome" | "chords" | null
+      const [allowedScales, setAllowedScales] = useState(null);
+      const [allowedChords, setAllowedChords] = useState(null);
 
       const loadData = useCallback(async () => {
         try {
@@ -3454,6 +3617,12 @@
           setAssignments(results[0]);
           setProgress(results[1]);
           if (results[2]) setContentLibrary(results[2]);
+          // Load toolbox access settings
+          try {
+            const tbAccess = await apiFetch('learning.php?action=toolbox_access&student_id=' + studentId, {}, token);
+            if (tbAccess && tbAccess.allowed_scales) setAllowedScales(tbAccess.allowed_scales);
+            if (tbAccess && tbAccess.allowed_chords) setAllowedChords(tbAccess.allowed_chords);
+          } catch (e) { /* use defaults: all */ }
         } catch (err) {
           setError(err.message);
         } finally {
@@ -3465,8 +3634,8 @@
 
       // Full-screen tools
       if (activeTool === "metronome") return <Metronome onBack={() => setActiveTool(null)} />;
-      if (activeTool === "chords") return <ChordReference onBack={() => setActiveTool(null)} />;
-      if (activeTool === "scales") return <ScaleReference onBack={() => setActiveTool(null)} />;
+      if (activeTool === "chords") return <ChordReference onBack={() => setActiveTool(null)} allowedChords={allowedChords} />;
+      if (activeTool === "scales") return <ScaleReference onBack={() => setActiveTool(null)} allowedScales={allowedScales} />;
       if (activeTool === "keyboard") return <PlayableKeyboard onBack={() => setActiveTool(null)} />;
       if (activeTool === "eartraining") return <EarTraining onBack={() => setActiveTool(null)} />;
 
@@ -3917,6 +4086,226 @@
       );
     }
 
+
+    // ============================================================
+    // TOOLBOX EDITOR (teacher can edit enharmonics, scales, chords)
+    // ============================================================
+
+    function ToolboxEditor({ token }) {
+      const [editMap, setEditMap] = useState(() => JSON.parse(JSON.stringify(ENHARMONIC_MAP)));
+      const [editScales, setEditScales] = useState(() => JSON.parse(JSON.stringify(SCALE_TYPES)));
+      const [editChords, setEditChords] = useState(() => JSON.parse(JSON.stringify(CHORD_TYPES)));
+      const [saving, setSaving] = useState(false);
+      const [saved, setSaved] = useState(false);
+      const [activeSection, setActiveSection] = useState("enharmonics");
+      const [aiFixing, setAiFixing] = useState(false);
+
+      // Load saved settings on mount
+      useEffect(() => {
+        (async () => {
+          try {
+            const data = await apiFetch('toolbox.php', {}, token);
+            if (data.enharmonic_map) setEditMap(data.enharmonic_map);
+            if (data.scale_types) setEditScales(data.scale_types);
+            if (data.chord_types) setEditChords(data.chord_types);
+          } catch (e) { /* use defaults */ }
+        })();
+      }, []);
+
+      const handleSave = async () => {
+        setSaving(true);
+        try {
+          await apiFetch('toolbox.php', {
+            method: 'POST',
+            body: JSON.stringify({
+              enharmonic_map: editMap,
+              scale_types: editScales,
+              chord_types: editChords,
+            })
+          }, token);
+          // Apply changes live
+          Object.keys(editMap).forEach(k => { ENHARMONIC_MAP[k] = editMap[k]; });
+          SCALE_TYPES.length = 0;
+          editScales.forEach(s => SCALE_TYPES.push(s));
+          CHORD_TYPES.length = 0;
+          editChords.forEach(c => CHORD_TYPES.push(c));
+          setSaved(true);
+          setTimeout(() => setSaved(false), 2000);
+        } catch (err) {
+          alert("Save failed: " + err.message);
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      const handleAIFix = async () => {
+        setAiFixing(true);
+        try {
+          const data = await aiCall('fix_enharmonics', { enharmonic_map: editMap }, token);
+          if (data.enharmonic_map) {
+            setEditMap(data.enharmonic_map);
+          }
+        } catch (err) {
+          alert("AI fix failed: " + err.message);
+        } finally {
+          setAiFixing(false);
+        }
+      };
+
+      const updateNote = (rootIdx, noteIdx, value) => {
+        const newMap = JSON.parse(JSON.stringify(editMap));
+        newMap[rootIdx][noteIdx] = value;
+        setEditMap(newMap);
+      };
+
+      const updateScale = (idx, field, value) => {
+        const newScales = [...editScales];
+        newScales[idx] = { ...newScales[idx], [field]: value };
+        setEditScales(newScales);
+      };
+
+      const removeScale = (idx) => setEditScales(editScales.filter((_, i) => i !== idx));
+
+      const addScale = () => setEditScales([...editScales, { name: "New Scale", intervals: [0], labels: ["1"] }]);
+
+      const updateChord = (idx, field, value) => {
+        const newChords = [...editChords];
+        newChords[idx] = { ...newChords[idx], [field]: value };
+        setEditChords(newChords);
+      };
+
+      const removeChord = (idx) => setEditChords(editChords.filter((_, i) => i !== idx));
+
+      const addChord = () => setEditChords([...editChords, { name: "New Chord", symbol: "", intervals: [0, 4, 7], labels: ["R", "3", "5"] }]);
+
+      const sectionBtn = (key, label) => (
+        <button onClick={() => setActiveSection(key)} style={{
+          padding: "8px 16px", borderRadius: "8px", border: "none", cursor: "pointer",
+          fontSize: "13px", fontWeight: 500,
+          background: activeSection === key ? "rgba(217,119,6,0.15)" : "rgba(0,0,0,0.03)",
+          color: activeSection === key ? "#92400e" : "#64748b",
+        }}>{label}</button>
+      );
+
+      return (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
+            <div>
+              <h1 style={styles.pageTitle}>Student Toolbox Editor</h1>
+              <p style={styles.pageSubtitle}>Edit scales, chords, and enharmonic note spelling for your students</p>
+            </div>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button style={{ ...styles.btnPrimary, opacity: saving ? 0.7 : 1 }} onClick={handleSave} disabled={saving}>
+                {saving ? "Saving..." : saved ? "Saved!" : "Save Changes"}
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: "8px", marginBottom: "20px", flexWrap: "wrap" }}>
+            {sectionBtn("enharmonics", "Enharmonic Spelling")}
+            {sectionBtn("scales", "Scale Types")}
+            {sectionBtn("chords", "Chord Types")}
+          </div>
+
+          {activeSection === "enharmonics" && (
+            <div style={styles.card}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                <div>
+                  <div style={{ fontSize: "15px", fontWeight: 600, color: "#1e293b" }}>Enharmonic Note Spelling</div>
+                  <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>For each root key, set the correct spelling of each note</div>
+                </div>
+                <button onClick={handleAIFix} disabled={aiFixing} style={{ ...aiButtonActiveStyle, padding: "8px 16px", opacity: aiFixing ? 0.7 : 1 }}>
+                  <AIIcons.Sparkle /> {aiFixing ? "Fixing..." : "AI Fix Enharmonics"}
+                </button>
+              </div>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "2px solid rgba(51,65,85,0.1)" }}>
+                      <th style={{ padding: "8px", textAlign: "left", color: "#64748b", fontWeight: 600 }}>Root</th>
+                      {[0,1,2,3,4,5,6,7,8,9,10,11].map(i => (
+                        <th key={i} style={{ padding: "8px", textAlign: "center", color: "#64748b", fontWeight: 500, fontSize: "11px" }}>
+                          {NOTE_NAMES_SHARP[i]}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.keys(editMap).map(rootIdx => (
+                      <tr key={rootIdx} style={{ borderBottom: "1px solid rgba(51,65,85,0.06)" }}>
+                        <td style={{ padding: "6px 8px", fontWeight: 600, color: "#1e293b" }}>{NOTE_NAMES[rootIdx]}</td>
+                        {editMap[rootIdx].map((note, noteIdx) => (
+                          <td key={noteIdx} style={{ padding: "2px" }}>
+                            <input value={note} onChange={e => updateNote(parseInt(rootIdx), noteIdx, e.target.value)}
+                              style={{ width: "40px", textAlign: "center", padding: "4px", border: "1px solid rgba(51,65,85,0.12)", borderRadius: "4px", fontSize: "13px",
+                                background: note.includes('b') || note.includes('#') ? "rgba(217,119,6,0.06)" : "transparent" }} />
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeSection === "scales" && (
+            <div>
+              {editScales.map((scale, idx) => (
+                <div key={idx} style={{ ...styles.card, marginBottom: "8px" }}>
+                  <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
+                    <input value={scale.name} onChange={e => updateScale(idx, 'name', e.target.value)}
+                      style={{ ...styles.input, flex: "1 1 200px", fontWeight: 600 }} />
+                    <div style={{ fontSize: "12px", color: "#64748b" }}>
+                      Intervals: <input value={scale.intervals.join(',')} onChange={e => updateScale(idx, 'intervals', e.target.value.split(',').map(Number).filter(n => !isNaN(n)))}
+                        style={{ ...styles.input, width: "180px", fontSize: "12px", display: "inline-block" }} />
+                    </div>
+                    <div style={{ fontSize: "12px", color: "#64748b" }}>
+                      Labels: <input value={scale.labels.join(',')} onChange={e => updateScale(idx, 'labels', e.target.value.split(',').map(s => s.trim()))}
+                        style={{ ...styles.input, width: "180px", fontSize: "12px", display: "inline-block" }} />
+                    </div>
+                    <button onClick={() => removeScale(idx)} style={{ ...styles.btnDanger, padding: "6px" }}><Icons.Trash /></button>
+                  </div>
+                </div>
+              ))}
+              <button onClick={addScale} style={{ ...styles.btnGhost, marginTop: "8px" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: "4px" }}><Icons.Plus /> Add Scale</span>
+              </button>
+            </div>
+          )}
+
+          {activeSection === "chords" && (
+            <div>
+              {editChords.map((chord, idx) => (
+                <div key={idx} style={{ ...styles.card, marginBottom: "8px" }}>
+                  <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
+                    <input value={chord.name} onChange={e => updateChord(idx, 'name', e.target.value)}
+                      style={{ ...styles.input, flex: "1 1 150px", fontWeight: 600 }} />
+                    <div style={{ fontSize: "12px", color: "#64748b" }}>
+                      Symbol: <input value={chord.symbol} onChange={e => updateChord(idx, 'symbol', e.target.value)}
+                        style={{ ...styles.input, width: "80px", fontSize: "12px", display: "inline-block" }} />
+                    </div>
+                    <div style={{ fontSize: "12px", color: "#64748b" }}>
+                      Intervals: <input value={chord.intervals.join(',')} onChange={e => updateChord(idx, 'intervals', e.target.value.split(',').map(Number).filter(n => !isNaN(n)))}
+                        style={{ ...styles.input, width: "140px", fontSize: "12px", display: "inline-block" }} />
+                    </div>
+                    <div style={{ fontSize: "12px", color: "#64748b" }}>
+                      Labels: <input value={chord.labels.join(',')} onChange={e => updateChord(idx, 'labels', e.target.value.split(',').map(s => s.trim()))}
+                        style={{ ...styles.input, width: "140px", fontSize: "12px", display: "inline-block" }} />
+                    </div>
+                    <button onClick={() => removeChord(idx)} style={{ ...styles.btnDanger, padding: "6px" }}><Icons.Trash /></button>
+                  </div>
+                </div>
+              ))}
+              <button onClick={addChord} style={{ ...styles.btnGhost, marginTop: "8px" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: "4px" }}><Icons.Plus /> Add Chord</span>
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
     // ============================================================
     // MAIN APP
     // ============================================================
@@ -4141,6 +4530,9 @@
                 <button style={styles.navBtn(teacherPage === "assignments")} onClick={() => setTeacherPage("assignments")}>
                   <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><Icons.Clipboard /> Assignments</span>
                 </button>
+                <button style={styles.navBtn(teacherPage === "toolbox")} onClick={() => setTeacherPage("toolbox")}>
+                  <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><Icons.Wrench /> Toolbox</span>
+                </button>
               </nav>
               {students.length > 0 && (
                 <div style={{ marginLeft: "16px", position: "relative" }}>
@@ -4199,6 +4591,9 @@
                   } catch (err) { throw err; }
                 }}
               />
+            )}
+            {teacherPage === "toolbox" && (
+              <ToolboxEditor token={token} />
             )}
             {teacherPage === "assignments" && (
               <TeacherAssignments

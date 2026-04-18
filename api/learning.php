@@ -138,10 +138,54 @@ switch ($action) {
         }
         break;
 
+    case 'toolbox_access':
+        $studentId = $_GET['student_id'] ?? '';
+        if (!$studentId) jsonResponse(['error' => 'student_id required'], 400);
+
+        // Auto-create table
+        try {
+            $db->exec('CREATE TABLE IF NOT EXISTS student_toolbox_access (
+                student_id VARCHAR(100) PRIMARY KEY,
+                allowed_scales TEXT,
+                allowed_chords TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )');
+        } catch (Exception $e) {}
+
+        if ($method === 'GET') {
+            $stmt = $db->prepare('SELECT * FROM student_toolbox_access WHERE student_id = ?');
+            $stmt->execute([$studentId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($row) {
+                jsonResponse([
+                    'allowed_scales' => $row['allowed_scales'] ? json_decode($row['allowed_scales'], true) : null,
+                    'allowed_chords' => $row['allowed_chords'] ? json_decode($row['allowed_chords'], true) : null,
+                ]);
+            } else {
+                jsonResponse((object)[]);
+            }
+        }
+
+        if ($method === 'POST' || $method === 'PUT') {
+            $body = getBody();
+            $stmt = $db->prepare('INSERT INTO student_toolbox_access (student_id, allowed_scales, allowed_chords)
+                VALUES (?, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                    allowed_scales = VALUES(allowed_scales),
+                    allowed_chords = VALUES(allowed_chords)');
+            $stmt->execute([
+                $studentId,
+                isset($body['allowed_scales']) ? json_encode($body['allowed_scales']) : null,
+                isset($body['allowed_chords']) ? json_encode($body['allowed_chords']) : null,
+            ]);
+            jsonResponse(['success' => true]);
+        }
+        break;
+
     case 'debug':
         jsonResponse(['teacherId' => $teacherId, 'type' => gettype($teacherId), 'method' => $method]);
         break;
 
     default:
-        jsonResponse(['error' => 'Unknown action. Use ?action=preferences|checkins|observations'], 400);
+        jsonResponse(['error' => 'Unknown action. Use ?action=preferences|checkins|observations|toolbox_access'], 400);
 }

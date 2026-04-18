@@ -413,6 +413,35 @@ Respond with a JSON object:
         jsonResponse(['lesson' => $parsed]);
         break;
 
+    case 'fix_enharmonics':
+        $map = $body['enharmonic_map'] ?? null;
+        if (!$map) jsonResponse(['error' => 'enharmonic_map required'], 400);
+
+        $prompt = 'You are a music theory expert. Review and fix this enharmonic note spelling map for a piano teaching app. The map has 12 keys (0-11, representing C through B). Each key maps to an array of 12 note name strings representing the correct enharmonic spelling of each chromatic note when in that root key context.
+
+Rules:
+- Use standard music theory enharmonic conventions
+- Sharp keys (G, D, A, E, B, F#) should use sharps
+- Flat keys (F, Bb, Eb, Ab, Db) should use flats  
+- C can use a mix (F# and Bb are standard)
+- Avoid double sharps/flats where a simpler name exists
+- The root note itself must always be spelled with its standard name
+- Scale degrees should follow standard naming (e.g. in F# major: F# G# A# B C# D# E#)
+
+Current map:
+' . json_encode($map, JSON_PRETTY_PRINT) . '
+
+Return ONLY a JSON object: {"enharmonic_map": {... the corrected map ...}}';
+
+        $result = callClaude($MUSIC_SYSTEM, $prompt, 2048);
+        $parsed = json_decode($result, true);
+        if (!$parsed) {
+            preg_match('/\{.*\}/s', $result, $m);
+            $parsed = json_decode($m[0] ?? '{}', true);
+        }
+        jsonResponse($parsed ?: ['error' => 'AI returned invalid JSON']);
+        break;
+
     default:
-        jsonResponse(['error' => 'Invalid action. Use: generate_content, expand_shorthand, expand_observation, youtube_import, youtube_bulk_import, build_path, bulk_generate, generate_lesson'], 400);
+        jsonResponse(['error' => 'Invalid action. Use: generate_content, expand_shorthand, expand_observation, youtube_import, youtube_bulk_import, build_path, bulk_generate, generate_lesson, fix_enharmonics'], 400);
 }
