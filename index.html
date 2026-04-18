@@ -5655,6 +5655,7 @@
       const [showStudentTour, setShowStudentTour] = useState(() => {
         try { return !sessionStorage.getItem('woodshed_student_tour_done'); } catch(e) { return true; }
       });
+      const [showStudentHelp, setShowStudentHelp] = useState(false);
 
       const loadData = useCallback(async () => {
         try {
@@ -6041,6 +6042,29 @@
             />
           )}
 
+          {/* Student Help Modal */}
+          {showStudentHelp && (
+            <div style={{
+              position: "fixed", inset: 0, zIndex: 10000,
+              background: "rgba(15, 23, 42, 0.6)", backdropFilter: "blur(4px)",
+              display: "flex", alignItems: "flex-start", justifyContent: "center",
+              padding: "20px", overflowY: "auto",
+            }}>
+              <div style={{
+                background: "#fff", borderRadius: "16px", maxWidth: "680px", width: "100%",
+                boxShadow: "0 24px 48px rgba(0,0,0,0.2)", padding: "24px", margin: "40px 0",
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                  <span />
+                  <button onClick={() => setShowStudentHelp(false)} style={{
+                    background: "none", border: "none", cursor: "pointer", fontSize: "20px", color: "#94a3b8", padding: "4px",
+                  }}>&times;</button>
+                </div>
+                <HelpSection role="student" />
+              </div>
+            </div>
+          )}
+
           {/* Student Guided Tour */}
           {showStudentTour && (
             <GuidedTour
@@ -6049,7 +6073,7 @@
               onNavigate={(tab) => setActiveTab(tab)}
             />
           )}
-          <TourHelpButton onClick={() => setShowStudentTour(true)} />
+          <TourHelpButton onTour={() => setShowStudentTour(true)} onHelp={() => setShowStudentHelp(true)} />
         </div>
       );
     }
@@ -6850,6 +6874,162 @@
 
     // MAIN APP
     // ============================================================
+    // HELP SECTION
+    // ============================================================
+
+    function HelpSection({ role }) {
+      const [expandedId, setExpandedId] = useState(null);
+      const toggle = (id) => setExpandedId(expandedId === id ? null : id);
+
+      const teacherFAQ = [
+        {
+          id: "t1", q: "How do I add a student?",
+          a: "Go to the Students tab and click 'Add Student'. Enter their name and level. They'll get a unique 6-digit PIN they can use to log in. Share the PIN or their direct practice link."
+        },
+        {
+          id: "t2", q: "How do I create a practice assignment?",
+          a: "Go to Assignments, select a student, and click 'New Assignment'. Give it a week label (e.g. 'Week 3 \u2014 ii-V-I focus'), then add steps from your content library. Drag to reorder, then release it when ready."
+        },
+        {
+          id: "t3", q: "How do I add content to the library?",
+          a: "Use the Library tab. You can: click 'Quick Lesson' for manual entry, use 'Describe & Create' to type shorthand and let AI expand it, use 'YouTube Import' to pull in videos, or 'Bulk Generate' for chord/scale exercises."
+        },
+        {
+          id: "t4", q: "What are the AI tools?",
+          a: "AI tools help you work faster. Describe & Create expands shorthand into full content entries. YouTube Import analyses videos and tags them automatically. AI Summaries generate progress reports for each student. AI Suggest recommends assignments based on what a student has done."
+        },
+        {
+          id: "t5", q: "How does the toolbox work?",
+          a: "The Toolbox tab lets you control which practice tools each student can access: metronome, chord charts, scales, keyboard, ear training, and backing tracks. You can also customise which specific chords and scales appear for each student."
+        },
+        {
+          id: "t6", q: "Can I see what my students see?",
+          a: "Yes! Use the 'Student View' dropdown in the top navigation bar. Select any student to see exactly what they see when they log in, including their assignments, progress, and available tools."
+        },
+        {
+          id: "t7", q: "How do students log in?",
+          a: "Students log in with a 6-digit PIN (no email or password needed). You can find each student's PIN on their card in the Students tab. You can also share their direct practice link."
+        },
+        {
+          id: "t8", q: "How do I know when a student finishes their practice?",
+          a: "You'll get an email notification when a student completes all steps in an assignment. You can also check the Dashboard for a quick overview, or the Students tab for detailed progress."
+        },
+        {
+          id: "t9", q: "What does the cover art finder do?",
+          a: "When you add an MP3 or any content, you can click 'Find Cover Art' to search for real album artwork from iTunes. Pick from multiple options and it saves as the content's thumbnail."
+        },
+        {
+          id: "t10", q: "How do I correct the AI when it gets something wrong?",
+          a: "After YouTube import or when editing any content, there's an 'AI Refine' box. Type corrections in shorthand (e.g. 'it's a ballad, Bb major, intermediate') and hit Enter. The AI rebuilds the entry based on your corrections."
+        },
+      ];
+
+      const studentFAQ = [
+        {
+          id: "s1", q: "How do I complete a practice step?",
+          a: "Tap the circle next to each step to mark it done. You'll be asked for a quick self-assessment \u2014 how did it go? This helps your teacher track your progress."
+        },
+        {
+          id: "s2", q: "What is the practice timer?",
+          a: "Each step has a built-in timer that tracks how long you practise. It runs automatically while you're on a step. Your teacher can see your practice times."
+        },
+        {
+          id: "s3", q: "How do I record myself?",
+          a: "Look for the microphone button on practice steps. Tap to start recording, tap again to stop. You can listen back and even get AI feedback on your playing."
+        },
+        {
+          id: "s4", q: "What is AI feedback?",
+          a: "After recording yourself, tap 'AI Feedback' to get practice tips specific to what you're working on. It includes a listening guide, common pitfalls to avoid, and self-check questions."
+        },
+        {
+          id: "s5", q: "What tools are in the Toolbox?",
+          a: "Depending on what your teacher has enabled: Metronome for keeping time, Chord Reference for chord charts, Scale Reference for scale patterns, a Playable Keyboard, Ear Training exercises, and Backing Tracks to play along with."
+        },
+        {
+          id: "s6", q: "How do I see past assignments?",
+          a: "On the Practice tab, look for a 'Past Assignments' link below your current assignment. You can revisit and review any previous week's work."
+        },
+        {
+          id: "s7", q: "What are Learning Preferences?",
+          a: "Go to your Profile tab and fill in the Learning Preferences form. This tells your teacher about your learning style, goals, and how much practice time you have. It helps them tailor your assignments."
+        },
+        {
+          id: "s8", q: "I forgot my PIN. What do I do?",
+          a: "Ask your teacher \u2014 they can see your PIN on the Students page. They can also share your direct practice link which doesn't need a PIN."
+        },
+      ];
+
+      const tips = role === "teacher" ? [
+        "Use shorthand when adding content \u2014 the AI expands it into student-friendly instructions.",
+        "Check the Dashboard before each lesson for a quick snapshot of who's been practising.",
+        "Use 'View as Student' to preview assignments before releasing them.",
+        "Bulk Generate is great for quickly building chord or scale exercise sets.",
+        "Add observations during lessons \u2014 they feed into AI practice summaries.",
+      ] : [
+        "Try to practise a little bit every day rather than one long session.",
+        "Use the timer to track your practice \u2014 it helps you build consistency.",
+        "Record yourself regularly \u2014 listening back is one of the best ways to improve.",
+        "Fill in your Learning Preferences so your teacher can tailor your assignments.",
+        "Don't skip the self-assessment after each step \u2014 it helps you reflect on your progress.",
+      ];
+
+      const faqs = role === "teacher" ? teacherFAQ : studentFAQ;
+
+      return (
+        <div style={{ maxWidth: "680px", margin: "0 auto" }}>
+          <h1 style={styles.pageTitle}>Help & FAQ</h1>
+          <p style={styles.pageSubtitle}>Tips and answers to common questions</p>
+
+          {/* Quick Tips */}
+          <div style={{ ...styles.card, background: "linear-gradient(135deg, rgba(217,119,6,0.04), rgba(251,191,36,0.06))", marginBottom: "24px" }}>
+            <h3 style={{ fontSize: "15px", fontWeight: 600, color: "#1e293b", marginBottom: "12px", display: "flex", alignItems: "center", gap: "8px" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+              Quick Tips
+            </h3>
+            {tips.map((tip, i) => (
+              <div key={i} style={{ display: "flex", gap: "10px", alignItems: "flex-start", marginBottom: i < tips.length - 1 ? "10px" : 0 }}>
+                <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#d97706", marginTop: "6px", flexShrink: 0 }} />
+                <span style={{ fontSize: "13px", color: "#475569", lineHeight: 1.5 }}>{tip}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* FAQ */}
+          <div>
+            <h3 style={{ fontSize: "15px", fontWeight: 600, color: "#1e293b", marginBottom: "12px" }}>Frequently Asked Questions</h3>
+            {faqs.map(faq => (
+              <div key={faq.id} style={{
+                ...styles.card, marginBottom: "8px", padding: "0", cursor: "pointer",
+                border: expandedId === faq.id ? "1px solid rgba(217,119,6,0.2)" : "1px solid rgba(51,65,85,0.06)",
+              }} onClick={() => toggle(faq.id)}>
+                <div style={{
+                  padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center",
+                }}>
+                  <span style={{ fontSize: "14px", fontWeight: 500, color: "#1e293b" }}>{faq.q}</span>
+                  <span style={{
+                    fontSize: "18px", color: "#94a3b8", transition: "transform 0.2s",
+                    transform: expandedId === faq.id ? "rotate(45deg)" : "rotate(0deg)",
+                    flexShrink: 0, marginLeft: "12px",
+                  }}>+</span>
+                </div>
+                {expandedId === faq.id && (
+                  <div style={{
+                    padding: "0 16px 14px 16px",
+                    fontSize: "13px", color: "#64748b", lineHeight: 1.6,
+                    borderTop: "1px solid rgba(51,65,85,0.06)",
+                    paddingTop: "12px",
+                  }}>
+                    {faq.a}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
     // GUIDED TOUR
     // ============================================================
 
@@ -7045,22 +7225,63 @@
       );
     }
 
-    function TourHelpButton({ onClick }) {
+    function TourHelpButton({ onTour, onHelp }) {
+      const [open, setOpen] = useState(false);
+      const ref = useRef(null);
+
+      useEffect(() => {
+        if (!open) return;
+        const handleClick = (e) => {
+          if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+        };
+        document.addEventListener("click", handleClick);
+        return () => document.removeEventListener("click", handleClick);
+      }, [open]);
+
       return (
-        <button onClick={onClick} style={{
-          position: "fixed", bottom: "24px", left: "24px", zIndex: 90,
-          width: "40px", height: "40px", borderRadius: "50%",
-          background: "linear-gradient(135deg, #1e293b, #334155)",
-          color: "#fbbf24", border: "none", cursor: "pointer",
-          boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: "18px", fontWeight: 700,
-          transition: "transform 0.2s ease",
-        }} onMouseEnter={e => e.currentTarget.style.transform = "scale(1.1)"}
-           onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
-           title="Take a guided tour">
-          ?
-        </button>
+        <div ref={ref} style={{ position: "fixed", bottom: "24px", left: "24px", zIndex: 90 }}>
+          {open && (
+            <div style={{
+              position: "absolute", bottom: "52px", left: 0,
+              background: "#fff", borderRadius: "12px",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.15)", overflow: "hidden",
+              minWidth: "180px", border: "1px solid rgba(51,65,85,0.08)",
+              animation: "fadeIn 0.15s ease-out",
+            }}>
+              <button onClick={() => { setOpen(false); onTour(); }} style={{
+                display: "flex", alignItems: "center", gap: "10px", width: "100%",
+                padding: "12px 16px", border: "none", background: "transparent",
+                cursor: "pointer", fontSize: "13px", color: "#1e293b", textAlign: "left",
+              }} onMouseEnter={e => e.currentTarget.style.background = "rgba(251,191,36,0.08)"}
+                 onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                Take a Tour
+              </button>
+              <div style={{ height: "1px", background: "rgba(51,65,85,0.06)" }} />
+              <button onClick={() => { setOpen(false); onHelp(); }} style={{
+                display: "flex", alignItems: "center", gap: "10px", width: "100%",
+                padding: "12px 16px", border: "none", background: "transparent",
+                cursor: "pointer", fontSize: "13px", color: "#1e293b", textAlign: "left",
+              }} onMouseEnter={e => e.currentTarget.style.background = "rgba(251,191,36,0.08)"}
+                 onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+                Help & FAQ
+              </button>
+            </div>
+          )}
+          <button onClick={() => setOpen(!open)} style={{
+            width: "40px", height: "40px", borderRadius: "50%",
+            background: open ? "#d97706" : "linear-gradient(135deg, #1e293b, #334155)",
+            color: "#fbbf24", border: "none", cursor: "pointer",
+            boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: "18px", fontWeight: 700,
+            transition: "all 0.2s ease",
+            transform: open ? "rotate(45deg)" : "rotate(0deg)",
+          }} title="Help & Tour">
+            ?
+          </button>
+        </div>
       );
     }
 
@@ -7298,6 +7519,9 @@
                 <button className="nav-btn" style={styles.navBtn(teacherPage === "toolbox")} onClick={() => setTeacherPage("toolbox")}>
                   <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><Icons.Wrench /> Toolbox</span>
                 </button>
+                <button className="nav-btn" style={styles.navBtn(teacherPage === "help")} onClick={() => setTeacherPage("help")}>
+                  <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg> Help</span>
+                </button>
                 {(teacher?.is_admin == true || teacher?.is_admin == 1) && (
                   <button className="nav-btn" style={styles.navBtn(teacherPage === "admin")} onClick={() => setTeacherPage("admin")}>
                     <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Admin</span>
@@ -7379,6 +7603,9 @@
             {teacherPage === "toolbox" && (
               <ToolboxEditor token={token} />
             )}
+            {teacherPage === "help" && (
+              <HelpSection role="teacher" />
+            )}
             {teacherPage === "admin" && (teacher?.is_admin == true || teacher?.is_admin == 1) && (
               <AdminPanel token={token} />
             )}
@@ -7402,7 +7629,7 @@
               onNavigate={(page) => setTeacherPage(page)}
             />
           )}
-          <TourHelpButton onClick={() => setShowTour(true)} />
+          <TourHelpButton onTour={() => setShowTour(true)} onHelp={() => setTeacherPage("help")} />
 
           <div style={{ textAlign: "center", padding: "20px 0 12px", fontSize: "11px", color: "#94a3b8" }}>
             &copy; {new Date().getFullYear()} Boing Media Ltd. Created by Dr Mark Baynes.
