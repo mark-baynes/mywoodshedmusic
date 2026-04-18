@@ -243,6 +243,49 @@ Respond with a JSON object:
         ]);
         break;
 
+    // ─── Refine YouTube import with teacher corrections ───
+    case 'youtube_refine':
+        $original = $body['original'] ?? [];
+        $correction = trim($body['correction'] ?? '');
+        $youtubeTitle = trim($body['youtubeTitle'] ?? '');
+        $youtubeAuthor = trim($body['youtubeAuthor'] ?? '');
+
+        if (!$correction) {
+            jsonResponse(['error' => 'Correction text required'], 400);
+        }
+
+        $originalJson = json_encode($original, JSON_PRETTY_PRINT);
+        $prompt = 'A piano teacher imported a YouTube video and the AI guessed these details:
+
+YouTube video: "' . $youtubeTitle . '" by ' . $youtubeAuthor . '
+
+Current AI-generated content entry:
+' . $originalJson . '
+
+The teacher says this is wrong and provides this correction in shorthand:
+"' . $correction . '"
+
+Rebuild the content entry incorporating the teacher corrections. The teacher knows best — if they say it is a ballad in Bb, trust that completely. Expand any shorthand naturally (e.g. "Bb" becomes "B flat major", "intermed" means suitable for intermediate players). Keep the description student-facing, 2-3 sentences.
+
+Respond with a JSON object:
+{
+  "title": "corrected title",
+  "type": "Watch|Play|Practice|Listen|Review",
+  "track": "Jazz|Contemporary|Foundation|Crossover",
+  "description": "corrected student-facing description"
+}';
+
+        $result = callClaude($MUSIC_SYSTEM, $prompt);
+        $parsed = json_decode($result, true);
+        if (!$parsed) {
+            preg_match('/\{.*\}/s', $result, $m);
+            $parsed = json_decode($m[0] ?? '{}', true);
+        }
+
+        jsonResponse(['content' => $parsed]);
+        break;
+
+
     // ─── Bulk YouTube import (multiple URLs) ───
     case 'youtube_bulk_import':
         $urls = $body['urls'] ?? [];
@@ -801,5 +844,5 @@ Respond with a JSON object:
         break;
 
     default:
-        jsonResponse(['error' => 'Invalid action. Use: generate_content, expand_shorthand, expand_observation, youtube_import, youtube_bulk_import, build_path, bulk_generate, generate_lesson, fix_enharmonics, generate_cover_art, practice_summary'], 400);
+        jsonResponse(['error' => 'Invalid action. Use: generate_content, expand_shorthand, expand_observation, youtube_import, youtube_refine, youtube_bulk_import, build_path, bulk_generate, generate_lesson, fix_enharmonics, generate_cover_art, practice_summary'], 400);
 }

@@ -4479,13 +4479,14 @@
       const [loading, setLoading] = useState(false);
       const [results, setResults] = useState([]);
       const [error, setError] = useState("");
+      const [refiningIndex, setRefiningIndex] = useState(null);
 
       const handleSingleImport = async () => {
         if (!url.trim()) return;
         setLoading(true); setError("");
         try {
           const data = await aiCall('youtube_import', { url }, token);
-          setResults([{ youtube: data.youtube, content: data.content, selected: true }]);
+          setResults([{ youtube: data.youtube, content: data.content, selected: true, correction: "", editing: false }]);
         } catch (err) { setError(err.message); }
         finally { setLoading(false); }
       };
@@ -4496,7 +4497,7 @@
         setLoading(true); setError("");
         try {
           const data = await aiCall('youtube_bulk_import', { urls }, token);
-          setResults(data.items.map(item => ({ ...item, selected: true })));
+          setResults(data.items.map(item => ({ ...item, selected: true, correction: "", editing: false })));
         } catch (err) { setError(err.message); }
         finally { setLoading(false); }
       };
@@ -4507,11 +4508,41 @@
         setResults(updated);
       };
 
+      const updateContentField = (i, field, value) => {
+        const updated = [...results];
+        updated[i].content = { ...updated[i].content, [field]: value };
+        setResults(updated);
+      };
+
+      const handleRefine = async (i) => {
+        const r = results[i];
+        if (!r.correction.trim()) return;
+        setRefiningIndex(i);
+        try {
+          const data = await aiCall('youtube_refine', {
+            original: r.content,
+            correction: r.correction,
+            youtubeTitle: r.youtube?.title || '',
+            youtubeAuthor: r.youtube?.author || ''
+          }, token);
+          if (data.content) {
+            const updated = [...results];
+            updated[i].content = data.content;
+            updated[i].correction = "";
+            setResults(updated);
+          }
+        } catch (err) { setError(err.message); }
+        finally { setRefiningIndex(null); }
+      };
+
       const handleAddSelected = () => {
         results.filter(r => r.selected && r.content && !r.error).forEach(r => {
           onAdd({ ...r.content, url: r.youtube.url });
         });
       };
+
+      const typeOptions = ["Watch", "Play", "Practice", "Listen", "Review"];
+      const trackOptions = ["Jazz", "Contemporary", "Foundation", "Crossover"];
 
       return (
         <Modal onClose={onClose}>
@@ -4534,7 +4565,7 @@
             <div style={styles.formGroup}>
               <label style={styles.label}>Paste YouTube URLs (one per line)</label>
               <textarea style={{ ...styles.textarea, minHeight: "120px" }} value={bulkUrls} onChange={e => setBulkUrls(e.target.value)}
-                placeholder="https://youtube.com/watch?v=abc123&#10;https://youtube.com/watch?v=def456&#10;https://youtu.be/ghi789" />
+                placeholder={"https://youtube.com/watch?v=abc123\nhttps://youtube.com/watch?v=def456\nhttps://youtu.be/ghi789"} />
             </div>
           )}
 
@@ -4553,23 +4584,57 @@
           {results.length > 0 && (
             <div style={{ marginTop: "16px" }}>
               {results.map((r, i) => (
-                <div key={i} style={{ ...styles.card, opacity: r.selected ? 1 : 0.5, cursor: "pointer" }} onClick={() => toggleSelect(i)}>
+                <div key={i} style={{ ...styles.card, opacity: r.selected ? 1 : 0.5 }}>
                   {r.error ? (
                     <div style={{ color: "#dc2626", fontSize: "13px" }}>Failed: {r.url || r.error}</div>
                   ) : (
                     <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-                        <div style={{ ...styles.stepCheck(r.selected), width: "22px", height: "22px" }}>
+                      {/* Header row with checkbox and YouTube info */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                        <div style={{ ...styles.stepCheck(r.selected), width: "22px", height: "22px", cursor: "pointer", flexShrink: 0 }} onClick={() => toggleSelect(i)}>
                           {r.selected && <Icons.Check />}
                         </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={styles.contentTypeIcon}>{contentTypeLabel(r.content?.type)}</div>
-                          <div style={{ fontSize: "14px", fontWeight: 500, color: "#1e293b" }}>{r.content?.title}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: "11px", color: "#94a3b8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {r.youtube?.title}
+                          </div>
+                          {r.youtube?.author && <div style={{ fontSize: "11px", color: "#d97706" }}>by {r.youtube.author}</div>}
                         </div>
-                        <span style={styles.tag(r.content?.track)}>{r.content?.track}</span>
                       </div>
-                      <p style={{ fontSize: "12px", color: "#64748b", lineHeight: 1.4, marginLeft: "30px" }}>{r.content?.description}</p>
-                      {r.youtube?.author && <div style={{ fontSize: "11px", color: "#d97706", marginTop: "4px", marginLeft: "30px" }}>by {r.youtube.author}</div>}
+
+                      {/* Editable fields */}
+                      <div style={{ marginLeft: "30px" }}>
+                        <div style={{ marginBottom: "8px" }}>
+                          <input style={{ ...styles.input, fontWeight: 500, fontSize: "14px" }}
+                            value={r.content?.title || ""} onChange={e => updateContentField(i, 'title', e.target.value)}
+                            placeholder="Title" />
+                        </div>
+                        <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+                          <select style={{ ...styles.input, flex: 1 }} value={r.content?.type || "Watch"} onChange={e => updateContentField(i, 'type', e.target.value)}>
+                            {typeOptions.map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
+                          <select style={{ ...styles.input, flex: 1 }} value={r.content?.track || "Jazz"} onChange={e => updateContentField(i, 'track', e.target.value)}>
+                            {trackOptions.map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
+                        </div>
+                        <div style={{ marginBottom: "8px" }}>
+                          <textarea style={{ ...styles.textarea, minHeight: "50px", fontSize: "12px" }}
+                            value={r.content?.description || ""} onChange={e => updateContentField(i, 'description', e.target.value)}
+                            placeholder="Description" />
+                        </div>
+
+                        {/* AI correction input */}
+                        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                          <input style={{ ...styles.input, flex: 1, fontSize: "12px" }}
+                            value={r.correction || ""} onChange={e => { const u = [...results]; u[i].correction = e.target.value; setResults(u); }}
+                            placeholder="Correct AI: e.g. 'it's a ballad, Bb major, intermediate'"
+                            onKeyDown={e => { if (e.key === 'Enter' && r.correction.trim()) handleRefine(i); }} />
+                          <button style={{ ...aiButtonStyle, padding: "6px 12px", fontSize: "11px", opacity: refiningIndex === i ? 0.6 : 1, whiteSpace: "nowrap" }}
+                            onClick={() => handleRefine(i)} disabled={refiningIndex === i || !r.correction?.trim()}>
+                            <AIIcons.Sparkle /> {refiningIndex === i ? "Refining..." : "AI Refine"}
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -4586,6 +4651,7 @@
         </Modal>
       );
     }
+
 
     // ============================================================
     // BULK CONTENT GENERATOR MODAL
