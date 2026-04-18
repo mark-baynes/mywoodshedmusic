@@ -1,6 +1,7 @@
 <?php
-// My Woodshed Music — Data Import API (admin only)
-// POST /api/import.php  — upload ZIP of CSVs to import
+// My Woodshed Music — Data Import API
+// POST /api/import.php          — teacher imports their own data (ZIP of CSVs)
+// POST /api/import.php?scope=all — admin imports all data (ZIP of CSVs)
 
 require_once __DIR__ . '/helpers.php';
 
@@ -9,7 +10,15 @@ $tokenData = null;
 if (preg_match('/Bearer\s+(.+)/', $header, $matches)) {
     $tokenData = verifyToken($matches[1]);
 }
-if (!$tokenData || !($tokenData['is_admin'] ?? false)) {
+if (!$tokenData || !isset($tokenData['teacher_id'])) {
+    jsonResponse(['error' => 'Unauthorized'], 401);
+}
+
+$scope = $_GET['scope'] ?? 'mine';
+$isAdmin = !empty($tokenData['is_admin']);
+$teacherId = $tokenData['teacher_id'];
+
+if ($scope === 'all' && !$isAdmin) {
     jsonResponse(['error' => 'Admin access required'], 403);
 }
 
@@ -22,9 +31,7 @@ if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
 }
 
 $file = $_FILES['file'];
-$ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-
-if ($ext !== 'zip') {
+if (strtolower(pathinfo($file['name'], PATHINFO_EXTENSION)) !== 'zip') {
     jsonResponse(['error' => 'Only ZIP files accepted'], 400);
 }
 
@@ -35,11 +42,6 @@ if ($zip->open($file['tmp_name']) !== true) {
 }
 
 $results = [];
-
-// Table import order matters for foreign keys
-$importOrder = ['teachers', 'students', 'content', 'assignments', 'assignment_steps', 'progress',
-                'toolbox_settings', 'student_toolbox_access', 'learning_profiles',
-                'invite_codes', 'completion_notifications'];
 
 function parseCsv($csvString) {
     $rows = [];
@@ -55,15 +57,76 @@ function parseCsv($csvString) {
     return $rows;
 }
 
+// Tables teachers can import (scoped to their own data)
+$teacherTables = ['students', 'content', 'assignments', 'assignment_steps', 'progress',
+                  'toolbox_settings', 'student_toolbox_access', 'learning_profiles'];
+
+// Tables only admin can import
+$adminOnlyTables = ['teachers', 'invite_codes', 'completion_notifications'];
+
+$importOrder = $scope === 'all'
+    ? array_merge($adminOnlyTables, $teacherTables)
+    : $teacherTables;
+
+// For teacher imports, get their student IDs and assignment IDs to validate ownership
+$ownStudentIds = [];
+$ownAssignmentIds = [];
+if ($scope !== 'all') {
+    $stmt = $db->prepare('SELECT id FROM students WHERE teacher_id = ?');
+    $stmt->execute([$teacherId]);
+    $ownStudentIds = array_column($stmt->fetchAll(), 'id');
+
+    $stmt = $db->prepare('SELECT id FROM assignments WHERE teacher_id = ?');
+    $stmt->execute([$teacherId]);
+    $ownAssignmentIds = array_column($stmt->fetchAll(), 'id');
+}
+
 foreach ($importOrder as $table) {
     $csvContent = $zip->getFromName("$table.csv");
     if ($csvContent === false) continue;
 
     $rows = parseCsv($csvContent);
-    if (empty($rows)) {
-        $results[$table] = 'empty';
-        continue;
+    if (empty($rows)) { $results[$table] = 'empty'; continue; }
+
+    // For teacher scope, enforce ownership
+    if ($scope !== 'all') {
+        $filteredRows = [];
+        foreach ($rows as $row) {
+            switch ($table) {
+                case 'students':
+                case 'content':
+                case 'assignments':
+                    // Must belong to this teacher
+                    if (($row['teacher_id'] ?? '') === $teacherId) $filteredRows[] = $row;
+                    break;
+                case 'assignment_steps':
+                    // Must belong to one of their assignments
+                    if (in_array($row['assignment_id'] ?? '', $ownAssignmentIds)) $filteredRows[] = $row;
+                    break;
+                case 'progress':
+                case 'learning_profiles':
+                case 'student_toolbox_access':
+                    // Must belong to one of their students
+                    if (in_array($row['student_id'] ?? '', $ownStudentIds)) $filteredRows[] = $row;
+                    break;
+                case 'toolbox_settings':
+                    if (($row['teacher_id'] ?? '') === $teacherId) $filteredRows[] = $row;
+                    break;
+                default:
+                    $filteredRows[] = $row;
+            }
+        }
+        $rows = $filteredRows;
+        // Also add any new student/assignment IDs from the import for subsequent tables
+        if ($table === 'students') {
+            $ownStudentIds = array_merge($ownStudentIds, array_column($rows, 'id'));
+        }
+        if ($table === 'assignments') {
+            $ownAssignmentIds = array_merge($ownAssignmentIds, array_column($rows, 'id'));
+        }
     }
+
+    if (empty($rows)) { $results[$table] = 'no matching records'; continue; }
 
     $imported = 0;
     $skipped = 0;
@@ -71,13 +134,11 @@ foreach ($importOrder as $table) {
     $placeholders = implode(',', array_fill(0, count($columns), '?'));
     $columnList = implode(',', array_map(function($c) { return "`$c`"; }, $columns));
 
-    // Use INSERT IGNORE to skip duplicates
     $stmt = $db->prepare("INSERT IGNORE INTO `$table` ($columnList) VALUES ($placeholders)");
 
     foreach ($rows as $row) {
         try {
-            $values = array_values($row);
-            $stmt->execute($values);
+            $stmt->execute(array_values($row));
             if ($stmt->rowCount() > 0) $imported++;
             else $skipped++;
         } catch (Exception $e) {
