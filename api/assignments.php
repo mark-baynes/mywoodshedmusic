@@ -33,6 +33,9 @@ if (!$isStudent && !$teacherId) {
 
 $db = getDB();
 
+// Auto-migrate: add sort_order column
+try { $db->exec('ALTER TABLE assignments ADD COLUMN sort_order INT DEFAULT 0'); } catch (PDOException $e) {}
+
 // Helper to load steps for an assignment
 function loadSteps($db, $assignmentId) {
     $stmt = $db->prepare('
@@ -60,17 +63,17 @@ switch ($method) {
     case 'GET':
         if ($isStudent) {
             // Student token: return assignments for this student only
-            $stmt = $db->prepare('SELECT a.* FROM assignments a WHERE a.student_id = ? ORDER BY a.created_at DESC');
+            $stmt = $db->prepare('SELECT a.* FROM assignments a WHERE a.student_id = ? ORDER BY a.sort_order ASC, a.created_at DESC');
             $stmt->execute([$studentIdFromToken]);
         } else {
             // Teacher token: original behaviour
             $studentId = $_GET['student_id'] ?? '';
 
             if ($studentId) {
-                $stmt = $db->prepare('SELECT a.* FROM assignments a JOIN students st ON st.id = a.student_id WHERE a.student_id = ? AND st.teacher_id = ? ORDER BY a.created_at DESC');
+                $stmt = $db->prepare('SELECT a.* FROM assignments a JOIN students st ON st.id = a.student_id WHERE a.student_id = ? AND st.teacher_id = ? ORDER BY a.sort_order ASC, a.created_at DESC');
                 $stmt->execute([$studentId, $teacherId]);
             } else {
-                $stmt = $db->prepare('SELECT a.*, s.name as student_name FROM assignments a JOIN students s ON s.id = a.student_id WHERE a.teacher_id = ? ORDER BY a.created_at DESC');
+                $stmt = $db->prepare('SELECT a.*, s.name as student_name FROM assignments a JOIN students s ON s.id = a.student_id WHERE a.teacher_id = ? ORDER BY a.sort_order ASC, a.created_at DESC');
                 $stmt->execute([$teacherId]);
             }
         }
@@ -83,6 +86,7 @@ switch ($method) {
             $a['studentId'] = $a['student_id'];
             $a['weekLabel'] = $a['week_label'];
             $a['createdAt'] = $a['created_at'];
+            $a['sortOrder'] = (int)($a['sort_order'] ?? 0);
         }
 
         jsonResponse($assignments);
@@ -104,8 +108,12 @@ switch ($method) {
         if (!$check->fetch()) jsonResponse(['error' => 'Student not found'], 404);
 
         $assignmentId = generateId();
-        $stmt = $db->prepare('INSERT INTO assignments (id, teacher_id, student_id, week_label) VALUES (?, ?, ?, ?)');
-        $stmt->execute([$assignmentId, $teacherId, $studentId, $weekLabel]);
+        // Get next sort_order
+        $maxOrder = $db->prepare('SELECT COALESCE(MAX(sort_order), 0) + 1 as next_order FROM assignments WHERE teacher_id = ? AND student_id = ?');
+        $maxOrder->execute([$teacherId, $studentId]);
+        $nextOrder = (int)$maxOrder->fetch()['next_order'];
+        $stmt = $db->prepare('INSERT INTO assignments (id, teacher_id, student_id, week_label, sort_order) VALUES (?, ?, ?, ?, ?)');
+        $stmt->execute([$assignmentId, $teacherId, $studentId, $weekLabel, $nextOrder]);
 
         // Insert steps
         $stepStmt = $db->prepare('INSERT INTO assignment_steps (id, assignment_id, content_id, notes, step_order) VALUES (?, ?, ?, ?, ?)');
@@ -132,6 +140,16 @@ switch ($method) {
         if (!$id) jsonResponse(['error' => 'Assignment ID required'], 400);
 
         $body = getBody();
+
+        // Reorder: swap sort_order values
+        if (isset($body['reorder'])) {
+            $order = $body['reorder']; // array of assignment IDs in desired order
+            foreach ($order as $i => $aId) {
+                $db->prepare('UPDATE assignments SET sort_order = ? WHERE id = ? AND teacher_id = ?')->execute([$i, $aId, $teacherId]);
+            }
+            jsonResponse(['success' => true]);
+            break;
+        }
 
         // Update week label
         if (isset($body['weekLabel'])) {
