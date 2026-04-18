@@ -2199,6 +2199,64 @@
         { name: "Minor 7th", intervals: [0, 3, 7, 10] },
       ];
 
+      // Diatonic chord progressions in major keys
+      // Each chord: { numeral, semitonesFromRoot, intervals (from chord root) }
+      const DIATONIC_CHORDS_MAJOR = {
+        'I':    { semi: 0,  intervals: [0, 4, 7] },
+        'ii':   { semi: 2,  intervals: [0, 3, 7] },
+        'iii':  { semi: 4,  intervals: [0, 3, 7] },
+        'IV':   { semi: 5,  intervals: [0, 4, 7] },
+        'V':    { semi: 7,  intervals: [0, 4, 7] },
+        'vi':   { semi: 9,  intervals: [0, 3, 7] },
+        'vii°': { semi: 11, intervals: [0, 3, 6] },
+        'Imaj7':  { semi: 0,  intervals: [0, 4, 7, 11] },
+        'ii7':    { semi: 2,  intervals: [0, 3, 7, 10] },
+        'iii7':   { semi: 4,  intervals: [0, 3, 7, 10] },
+        'IVmaj7': { semi: 5,  intervals: [0, 4, 7, 11] },
+        'V7':     { semi: 7,  intervals: [0, 4, 7, 10] },
+        'vi7':    { semi: 9,  intervals: [0, 3, 7, 10] },
+        'viiø7':  { semi: 11, intervals: [0, 3, 6, 10] },
+      };
+
+      const PROGRESSIONS = [
+        { name: "ii - V - I",          chords: ['ii', 'V', 'I'],           category: "essential" },
+        { name: "ii7 - V7 - Imaj7",    chords: ['ii7', 'V7', 'Imaj7'],    category: "essential" },
+        { name: "I - IV - V - I",      chords: ['I', 'IV', 'V', 'I'],     category: "essential" },
+        { name: "I - vi - ii - V",     chords: ['I', 'vi', 'ii', 'V'],    category: "essential" },
+        { name: "I - V - vi - IV",     chords: ['I', 'V', 'vi', 'IV'],    category: "common" },
+        { name: "I - IV - V",          chords: ['I', 'IV', 'V'],          category: "common" },
+        { name: "vi - IV - I - V",     chords: ['vi', 'IV', 'I', 'V'],    category: "common" },
+        { name: "I - vi - IV - V",     chords: ['I', 'vi', 'IV', 'V'],    category: "common" },
+        { name: "iii - vi - ii - V",   chords: ['iii', 'vi', 'ii', 'V'],  category: "jazz" },
+        { name: "Imaj7 - vi7 - ii7 - V7", chords: ['Imaj7', 'vi7', 'ii7', 'V7'], category: "jazz" },
+        { name: "I - IV - vii° - iii - vi - ii - V - I", chords: ['I', 'IV', 'vii°', 'iii', 'vi', 'ii', 'V', 'I'], category: "jazz" },
+        { name: "ii7 - V7 - Imaj7 - IVmaj7", chords: ['ii7', 'V7', 'Imaj7', 'IVmaj7'], category: "jazz" },
+      ];
+
+      const [progCategory, setProgCategory] = useState("all");
+
+      const playProgression = (chordNames, rootMidi) => {
+        chordNames.forEach((name, i) => {
+          const chord = DIATONIC_CHORDS_MAJOR[name];
+          if (!chord) return;
+          const chordRoot = rootMidi + chord.semi;
+          setTimeout(() => {
+            chord.intervals.forEach(interval => playNote(chordRoot + interval, 1.2));
+          }, i * 700);
+        });
+      };
+
+      const filteredProgressions = progCategory === "all" ? PROGRESSIONS : PROGRESSIONS.filter(p => p.category === progCategory);
+
+      const newProgressionQuestion = () => {
+        const rootMidi = 48 + Math.floor(Math.random() * 12); // C3 to B3
+        const prog = filteredProgressions[Math.floor(Math.random() * filteredProgressions.length)];
+        const q = { type: "progression", rootMidi, progression: prog };
+        setCurrentQuestion(q);
+        setAnswer(null);
+        setTimeout(() => playProgression(prog.chords, rootMidi), 200);
+      };
+
       const newChordQuestion = () => {
         const rootMidi = 60 + Math.floor(Math.random() * 12);
         const chord = QUIZ_CHORDS[Math.floor(Math.random() * QUIZ_CHORDS.length)];
@@ -2209,9 +2267,10 @@
       };
 
       const checkAnswer = (guess) => {
-        const correct = currentQuestion.type === "interval"
-          ? guess === currentQuestion.interval.name
-          : guess === currentQuestion.chord.name;
+        let correct;
+        if (currentQuestion.type === "interval") correct = guess === currentQuestion.interval.name;
+        else if (currentQuestion.type === "chord") correct = guess === currentQuestion.chord.name;
+        else correct = guess === currentQuestion.progression.name;
         setAnswer({ guess, correct });
         setScore(prev => ({ correct: prev.correct + (correct ? 1 : 0), total: prev.total + 1 }));
         setStreak(correct ? streak + 1 : 0);
@@ -2220,12 +2279,13 @@
       const replayQuestion = () => {
         if (!currentQuestion) return;
         if (currentQuestion.type === "interval") playInterval(currentQuestion.semitones, currentQuestion.rootMidi);
-        else playChord(currentQuestion.chord.intervals, currentQuestion.rootMidi);
+        else if (currentQuestion.type === "chord") playChord(currentQuestion.chord.intervals, currentQuestion.rootMidi);
+        else playProgression(currentQuestion.progression.chords, currentQuestion.rootMidi);
       };
 
-      const nextQuestion = mode === "intervals" ? newIntervalQuestion : newChordQuestion;
-      const options = mode === "intervals" ? INTERVALS.map(i => i.name) : QUIZ_CHORDS.map(c => c.name);
-      const correctAnswer = currentQuestion ? (currentQuestion.type === "interval" ? currentQuestion.interval.name : currentQuestion.chord.name) : null;
+      const nextQuestion = mode === "intervals" ? newIntervalQuestion : mode === "chords" ? newChordQuestion : newProgressionQuestion;
+      const options = mode === "intervals" ? INTERVALS.map(i => i.name) : mode === "chords" ? QUIZ_CHORDS.map(c => c.name) : filteredProgressions.map(p => p.name);
+      const correctAnswer = currentQuestion ? (currentQuestion.type === "interval" ? currentQuestion.interval.name : currentQuestion.type === "chord" ? currentQuestion.chord.name : currentQuestion.progression.name) : null;
 
       return (
         <div style={{ ...styles.app, minHeight: "100vh" }}>
@@ -2238,16 +2298,30 @@
 
           <div className="student-container" style={{ ...styles.container, maxWidth: "600px" }}>
             {/* Mode toggle */}
-            <div className="student-card" style={{ ...styles.card, display: "flex", gap: "8px", padding: "16px" }}>
-              {["intervals", "chords"].map(m => (
-                <button key={m} onClick={() => { setMode(m); setCurrentQuestion(null); setAnswer(null); }} style={{
+            <div className="student-card" style={{ ...styles.card, display: "flex", gap: "8px", padding: "16px", flexWrap: "wrap" }}>
+              {["intervals", "chords", "progressions"].map(m => (
+                <button key={m} onClick={() => { setMode(m); setCurrentQuestion(null); setAnswer(null); setScore({ correct: 0, total: 0 }); setStreak(0); }} style={{
                   flex: 1, padding: "10px", borderRadius: "10px", border: "none", cursor: "pointer",
-                  fontSize: "14px", fontWeight: 600, textTransform: "capitalize",
+                  fontSize: "14px", fontWeight: 600, textTransform: "capitalize", minWidth: "90px",
                   background: mode === m ? "linear-gradient(135deg, #d97706, #f59e0b)" : "rgba(0,0,0,0.03)",
                   color: mode === m ? "#fff" : "#64748b",
                 }}>{m}</button>
               ))}
             </div>
+
+            {/* Progression category filter */}
+            {mode === "progressions" && (
+              <div className="student-card" style={{ ...styles.card, display: "flex", gap: "6px", padding: "12px 16px", flexWrap: "wrap" }}>
+                {["all", "essential", "common", "jazz"].map(cat => (
+                  <button key={cat} onClick={() => { setProgCategory(cat); setCurrentQuestion(null); setAnswer(null); }} style={{
+                    padding: "6px 14px", borderRadius: "8px", border: "none", cursor: "pointer",
+                    fontSize: "12px", fontWeight: 600, textTransform: "capitalize",
+                    background: progCategory === cat ? "rgba(217,119,6,0.2)" : "rgba(0,0,0,0.03)",
+                    color: progCategory === cat ? "#92400e" : "#94a3b8",
+                  }}>{cat}</button>
+                ))}
+              </div>
+            )}
 
             {/* Score */}
             {score.total > 0 && (
@@ -2270,10 +2344,10 @@
               {!currentQuestion ? (
                 <div>
                   <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "20px", color: "#1e293b", marginBottom: "12px" }}>
-                    {mode === "intervals" ? "Identify the interval" : "Identify the chord quality"}
+                    {mode === "intervals" ? "Identify the interval" : mode === "chords" ? "Identify the chord quality" : "Identify the progression"}
                   </div>
                   <p style={{ fontSize: "14px", color: "#64748b", marginBottom: "20px" }}>
-                    {mode === "intervals" ? "You'll hear two notes played in sequence. Name the interval." : "You'll hear a chord. Identify its quality."}
+                    {mode === "intervals" ? "You'll hear two notes played in sequence. Name the interval." : mode === "chords" ? "You'll hear a chord. Identify its quality." : "You'll hear a chord progression in a random key. Name the Roman numeral progression."}
                   </p>
                   <button onClick={nextQuestion} style={styles.btnPrimary}>Start</button>
                 </div>
