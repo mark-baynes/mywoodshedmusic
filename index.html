@@ -4465,6 +4465,158 @@
     }
 
     // ============================================================
+    // ============================================================
+    // ADMIN PANEL (owner only)
+    // ============================================================
+
+    function AdminPanel({ token }) {
+      const [pendingTeachers, setPendingTeachers] = useState([]);
+      const [allTeachers, setAllTeachers] = useState([]);
+      const [inviteCodes, setInviteCodes] = useState([]);
+      const [newLabel, setNewLabel] = useState("");
+      const [showAll, setShowAll] = useState(false);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState("");
+
+      const loadData = async () => {
+        try {
+          const [pending, codes] = await Promise.all([
+            apiFetch('admin.php?action=pending_teachers', {}, token),
+            apiFetch('admin.php?action=invite_codes', {}, token)
+          ]);
+          setPendingTeachers(pending);
+          setInviteCodes(codes);
+          if (showAll) {
+            const all = await apiFetch('admin.php?action=all_teachers', {}, token);
+            setAllTeachers(all);
+          }
+        } catch (err) { setError(err.message); }
+        setLoading(false);
+      };
+
+      useEffect(() => { loadData(); }, [showAll]);
+
+      const handleApprove = async (teacherId) => {
+        await apiFetch('admin.php?action=approve_teacher', { method: 'POST', body: JSON.stringify({ teacherId }) }, token);
+        loadData();
+      };
+
+      const handleReject = async (teacherId) => {
+        if (!confirm("Remove this pending teacher?")) return;
+        await apiFetch('admin.php?action=reject_teacher', { method: 'POST', body: JSON.stringify({ teacherId }) }, token);
+        loadData();
+      };
+
+      const handleCreateInvite = async () => {
+        await apiFetch('admin.php?action=create_invite', { method: 'POST', body: JSON.stringify({ label: newLabel }) }, token);
+        setNewLabel("");
+        loadData();
+      };
+
+      const handleDeleteInvite = async (id) => {
+        await apiFetch('admin.php?action=delete_invite&id=' + id, { method: 'DELETE' }, token);
+        loadData();
+      };
+
+      const copyCode = (code) => {
+        navigator.clipboard.writeText(code);
+      };
+
+      if (loading) return <Loading message="Loading admin panel..." />;
+
+      return (
+        <div>
+          <div style={{ marginBottom: "32px" }}>
+            <h1 style={styles.pageTitle}>Admin Panel</h1>
+            <p style={styles.pageSubtitle}>Manage teacher accounts and invite codes</p>
+          </div>
+
+          <ErrorBanner message={error} onDismiss={() => setError("")} />
+
+          <div style={{ ...styles.card, marginBottom: "24px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <h2 style={{ fontSize: "18px", fontWeight: 600, color: "#1e293b", margin: 0 }}>
+                Pending Approvals
+                {pendingTeachers.length > 0 && <span style={{ marginLeft: "8px", background: "#ef4444", color: "#fff", borderRadius: "12px", padding: "2px 10px", fontSize: "13px" }}>{pendingTeachers.length}</span>}
+              </h2>
+            </div>
+            {pendingTeachers.length === 0 ? (
+              <p style={{ color: "#94a3b8", fontSize: "14px", fontStyle: "italic" }}>No pending teacher accounts</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {pendingTeachers.map(t => (
+                  <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderRadius: "10px", background: "rgba(245,158,11,0.04)", border: "1px solid rgba(245,158,11,0.12)" }}>
+                    <div>
+                      <div style={{ fontWeight: 600, color: "#1e293b" }}>{t.name}</div>
+                      <div style={{ fontSize: "13px", color: "#64748b" }}>{t.email}</div>
+                    </div>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button onClick={() => handleApprove(t.id)} style={{ ...styles.btnPrimary, padding: "6px 16px", fontSize: "13px" }}>Approve</button>
+                      <button onClick={() => handleReject(t.id)} style={{ ...styles.btnDanger, padding: "6px 12px", fontSize: "13px" }}><Icons.Trash /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div style={{ ...styles.card, marginBottom: "24px" }}>
+            <h2 style={{ fontSize: "18px", fontWeight: 600, color: "#1e293b", marginBottom: "16px" }}>Invite Codes</h2>
+            <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+              <input value={newLabel} onChange={e => setNewLabel(e.target.value)} placeholder="Label (e.g. Summer Workshop)" style={{ ...styles.input, flex: 1 }} />
+              <button onClick={handleCreateInvite} style={{ ...styles.btnPrimary, whiteSpace: "nowrap" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><Icons.Plus /> Generate Code</span>
+              </button>
+            </div>
+            {inviteCodes.length === 0 ? (
+              <p style={{ color: "#94a3b8", fontSize: "14px", fontStyle: "italic" }}>No invite codes yet</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {inviteCodes.map(ic => (
+                  <div key={ic.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", borderRadius: "10px", background: ic.used_by ? "rgba(0,0,0,0.02)" : "rgba(16,185,129,0.04)", border: ic.used_by ? "1px solid rgba(0,0,0,0.06)" : "1px solid rgba(16,185,129,0.15)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "16px", fontWeight: 700, color: ic.used_by ? "#94a3b8" : "#10b981", letterSpacing: "2px" }}>{ic.code}</span>
+                      {ic.label && <span style={{ fontSize: "13px", color: "#64748b" }}>{ic.label}</span>}
+                      {ic.used_by_name && <span style={{ fontSize: "12px", color: "#94a3b8", fontStyle: "italic" }}>Used by {ic.used_by_name}</span>}
+                    </div>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      {!ic.used_by && <button onClick={() => copyCode(ic.code)} style={{ ...styles.btnSmall, background: "rgba(0,0,0,0.04)", border: "none", cursor: "pointer", padding: "6px 10px", borderRadius: "8px", fontSize: "12px", color: "#64748b" }}><Icons.Copy /> Copy</button>}
+                      <button onClick={() => handleDeleteInvite(ic.id)} style={{ ...styles.btnSmall, background: "rgba(239,68,68,0.06)", border: "none", cursor: "pointer", padding: "6px", borderRadius: "8px", color: "#ef4444" }}><Icons.Trash /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div style={{ ...styles.card }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: showAll ? "16px" : 0 }}>
+              <h2 style={{ fontSize: "18px", fontWeight: 600, color: "#1e293b", margin: 0 }}>All Teachers</h2>
+              <button onClick={() => setShowAll(!showAll)} style={{ ...styles.btnGhost, fontSize: "13px" }}>
+                {showAll ? "Hide" : "Show"}
+              </button>
+            </div>
+            {showAll && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {allTeachers.map(t => (
+                  <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", borderRadius: "8px", background: "rgba(0,0,0,0.02)" }}>
+                    <div>
+                      <span style={{ fontWeight: 500, color: "#1e293b" }}>{t.name}</span>
+                      <span style={{ fontSize: "13px", color: "#64748b", marginLeft: "8px" }}>{t.email}</span>
+                    </div>
+                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                      {(t.is_admin == 1 || t.is_admin === true) && <span style={{ fontSize: "11px", fontWeight: 600, color: "#d97706", background: "rgba(245,158,11,0.1)", padding: "2px 8px", borderRadius: "8px" }}>ADMIN</span>}
+                      <span style={{ fontSize: "12px", color: (t.approved == 1 || t.approved === true) ? "#10b981" : "#ef4444" }}>{(t.approved == 1 || t.approved === true) ? "Approved" : "Pending"}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     // MAIN APP
     // ============================================================
 
@@ -4691,7 +4843,7 @@
                 <button className="nav-btn" style={styles.navBtn(teacherPage === "toolbox")} onClick={() => setTeacherPage("toolbox")}>
                   <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><Icons.Wrench /> Toolbox</span>
                 </button>
-                {teacher?.is_admin && (
+                {(teacher?.is_admin == true || teacher?.is_admin == 1) && (
                   <button className="nav-btn" style={styles.navBtn(teacherPage === "admin")} onClick={() => setTeacherPage("admin")}>
                     <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Admin</span>
                   </button>
@@ -4758,7 +4910,7 @@
             {teacherPage === "toolbox" && (
               <ToolboxEditor token={token} />
             )}
-            {teacherPage === "admin" && teacher?.is_admin && (
+            {teacherPage === "admin" && (teacher?.is_admin == true || teacher?.is_admin == 1) && (
               <AdminPanel token={token} />
             )}
             {teacherPage === "assignments" && (
