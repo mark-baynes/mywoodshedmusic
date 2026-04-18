@@ -130,18 +130,126 @@
     // YOUTUBE EMBED HELPER
     // ============================================================
 
-    function YouTubeEmbed({ url }) {
+    // Load YouTube IFrame API once
+    (function() {
+      if (!document.getElementById('yt-iframe-api')) {
+        const tag = document.createElement('script');
+        tag.id = 'yt-iframe-api';
+        tag.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(tag);
+      }
+    })();
+
+    function YouTubeEmbed({ url, showControls = true }) {
       const match = url && url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
       if (!match) return null;
       const videoId = match[1];
+
+      const containerRef = useRef(null);
+      const playerRef = useRef(null);
+      const iframeId = useRef('yt-' + videoId + '-' + Math.random().toString(36).slice(2, 8));
+      const [speed, setSpeed] = useState(1);
+      const [showSpeedControls, setShowSpeedControls] = useState(false);
+      const [originalKey, setOriginalKey] = useState(0); // index into NOTE_NAMES
+      const [transpose, setTranspose] = useState(0); // semitones
+
+      useEffect(() => {
+        let player;
+        const initPlayer = () => {
+          if (!window.YT || !window.YT.Player) {
+            setTimeout(initPlayer, 200);
+            return;
+          }
+          player = new window.YT.Player(iframeId.current, {
+            videoId,
+            playerVars: { rel: 0, modestbranding: 1 },
+            events: {
+              onReady: () => { playerRef.current = player; }
+            }
+          });
+        };
+        initPlayer();
+        return () => { if (player && player.destroy) try { player.destroy(); } catch(e) {} };
+      }, [videoId]);
+
+      const changeSpeed = (newSpeed) => {
+        setSpeed(newSpeed);
+        if (playerRef.current && playerRef.current.setPlaybackRate) {
+          playerRef.current.setPlaybackRate(newSpeed);
+        }
+      };
+
+      const transposedKey = NOTE_NAMES[(originalKey + transpose + 12) % 12];
+      const speeds = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+
       return (
-        <div style={{ position: "relative", paddingBottom: "56.25%", height: 0, overflow: "hidden", borderRadius: "10px", marginTop: "10px", background: "#0f172a" }}>
-          <iframe
-            src={`https://www.youtube.com/embed/${videoId}`}
-            style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          />
+        <div style={{ marginTop: "10px" }}>
+          <div style={{ position: "relative", paddingBottom: "56.25%", height: 0, overflow: "hidden", borderRadius: "10px", background: "#0f172a" }}>
+            <div id={iframeId.current} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }} />
+          </div>
+
+          {showControls && (
+            <div style={{ marginTop: "8px" }}>
+              <button onClick={() => setShowSpeedControls(!showSpeedControls)} style={{
+                background: "none", border: "none", cursor: "pointer", fontSize: "12px",
+                color: "#d97706", fontWeight: 500, display: "flex", alignItems: "center", gap: "4px", padding: "4px 0"
+              }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+                Speed: {speed}x {transpose !== 0 ? ` · Transpose: ${transpose > 0 ? '+' : ''}${transpose}` : ''}
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ transform: showSpeedControls ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+
+              {showSpeedControls && (
+                <div className="fade-in" style={{ padding: "12px", borderRadius: "10px", background: "rgba(30,41,59,0.04)", border: "1px solid rgba(51,65,85,0.08)", marginTop: "4px" }}>
+                  {/* Speed */}
+                  <div style={{ marginBottom: "12px" }}>
+                    <div style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", color: "#94a3b8", marginBottom: "6px" }}>Playback Speed</div>
+                    <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+                      {speeds.map(s => (
+                        <button key={s} onClick={() => changeSpeed(s)} style={{
+                          padding: "4px 10px", borderRadius: "6px", border: "none", cursor: "pointer",
+                          fontSize: "12px", fontWeight: speed === s ? 700 : 400,
+                          background: speed === s ? "#d97706" : "rgba(0,0,0,0.04)",
+                          color: speed === s ? "#fff" : "#64748b",
+                        }}>{s}x</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Transpose */}
+                  <div>
+                    <div style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", color: "#94a3b8", marginBottom: "6px" }}>Transposition Reference</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span style={{ fontSize: "12px", color: "#64748b" }}>Original key:</span>
+                        <select value={originalKey} onChange={e => setOriginalKey(parseInt(e.target.value))} style={{ ...styles.input, padding: "4px 8px", fontSize: "13px", width: "auto", fontWeight: 600 }}>
+                          {NOTE_NAMES.map((n, i) => <option key={i} value={i}>{n}</option>)}
+                        </select>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                        <button onClick={() => setTranspose(t => t - 1)} style={{ width: "28px", height: "28px", borderRadius: "6px", border: "none", cursor: "pointer", background: "rgba(0,0,0,0.06)", fontSize: "16px", fontWeight: 700, color: "#64748b", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "14px", fontWeight: 700, color: "#1e293b", minWidth: "40px", textAlign: "center" }}>{transpose > 0 ? '+' : ''}{transpose}</span>
+                        <button onClick={() => setTranspose(t => t + 1)} style={{ width: "28px", height: "28px", borderRadius: "6px", border: "none", cursor: "pointer", background: "rgba(0,0,0,0.06)", fontSize: "16px", fontWeight: 700, color: "#64748b", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                      </div>
+                      {transpose !== 0 && (
+                        <div style={{ fontSize: "14px", fontWeight: 700, color: "#d97706" }}>
+                          → Think in: {transposedKey}
+                        </div>
+                      )}
+                      {transpose !== 0 && (
+                        <button onClick={() => setTranspose(0)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "11px", color: "#94a3b8" }}>Reset</button>
+                      )}
+                    </div>
+                    <p style={{ fontSize: "11px", color: "#94a3b8", marginTop: "6px", fontStyle: "italic" }}>
+                      Set the original key of the track, then transpose to practise in a different key.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       );
     }
@@ -1803,7 +1911,60 @@
     // TOOLBOX (container for tools)
     // ============================================================
 
-    function Toolbox({ onOpenMetronome, onOpenChords, onOpenScales, onOpenKeyboard, onOpenEarTraining }) {
+    function BackingTracks({ onBack }) {
+      const [trackUrl, setTrackUrl] = useState("");
+      const [activeUrl, setActiveUrl] = useState(null);
+
+      const loadTrack = () => {
+        const trimmed = trackUrl.trim();
+        if (trimmed && trimmed.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/)) {
+          setActiveUrl(trimmed);
+        }
+      };
+
+      return (
+        <div style={{ ...styles.app, minHeight: "100vh" }}>
+          <div className="student-top-bar" style={styles.topBar}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <button onClick={onBack} style={{ background: "none", border: "none", color: "#fbbf24", cursor: "pointer", display: "flex", alignItems: "center", minWidth: 44, minHeight: 44, justifyContent: "center" }}><Icons.ArrowLeft /></button>
+              <WoodshedLogo size={28} />
+            </div>
+          </div>
+          <div className="student-container fade-in" style={styles.container}>
+            <h2 style={{ ...styles.pageTitle, fontSize: "22px" }}>Backing Tracks</h2>
+            <p style={{ ...styles.pageSubtitle, marginBottom: "20px" }}>Slow down and transpose YouTube backing tracks for practice</p>
+
+            <div style={{ ...styles.card, marginBottom: "20px" }}>
+              <div style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", color: "#94a3b8", marginBottom: "6px" }}>Load a YouTube Track</div>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <input value={trackUrl} onChange={e => setTrackUrl(e.target.value)} onKeyDown={e => e.key === 'Enter' && loadTrack()}
+                  placeholder="Paste YouTube URL..." style={{ ...styles.input, flex: 1 }} />
+                <button onClick={loadTrack} style={{ ...styles.btnPrimary, whiteSpace: "nowrap" }}>Load</button>
+              </div>
+            </div>
+
+            {activeUrl && (
+              <div className="fade-in" style={styles.card}>
+                <YouTubeEmbed url={activeUrl} showControls={true} />
+              </div>
+            )}
+
+            {!activeUrl && (
+              <div style={{ ...styles.card, textAlign: "center", padding: "40px 20px", color: "#94a3b8" }}>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" style={{ margin: "0 auto 16px", opacity: 0.4 }}>
+                  <polygon points="5 3 19 12 5 21 5 3" fill="currentColor" opacity="0.1"/>
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+                <div style={{ fontSize: "16px", fontWeight: 500, marginBottom: "8px" }}>Paste a YouTube URL above to get started</div>
+                <div style={{ fontSize: "13px" }}>Use the speed and transposition controls to practise at your own pace</div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+        function Toolbox({ onOpenMetronome, onOpenChords, onOpenScales, onOpenKeyboard, onOpenEarTraining, onOpenBackingTracks }) {
       return (
         <div className="student-container" style={styles.container}>
           <h1 className="student-page-title" style={{ ...styles.pageTitle, fontSize: "24px" }}>Toolbox</h1>
@@ -1858,6 +2019,16 @@
               <div style={{ marginBottom: "12px", color: "#ec4899" }}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg></div>
               <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "16px", color: "#1e293b", marginBottom: "4px" }}>Ear Training</div>
               <div style={{ fontSize: "12px", color: "#64748b" }}>Interval and chord recognition</div>
+            </button>
+
+            <button className="toolbox-card toolbox-card-styled" onClick={onOpenBackingTracks} style={{
+              ...styles.card, cursor: "pointer", textAlign: "center", padding: "32px 20px",
+              border: "2px solid rgba(0,0,0,0.04)", transition: "all 0.2s",
+              background: "linear-gradient(135deg, rgba(251,146,60,0.06), rgba(253,186,116,0.03))",
+            }}>
+              <div style={{ marginBottom: "12px", color: "#f97316" }}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><polygon points="5 3 19 12 5 21 5 3"/><line x1="12" y1="20" x2="12" y2="22"/><circle cx="12" cy="22" r="1"/></svg></div>
+              <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "16px", color: "#1e293b", marginBottom: "4px" }}>Backing Tracks</div>
+              <div style={{ fontSize: "12px", color: "#64748b" }}>Slow down &amp; transpose</div>
             </button>
           </div>
         </div>
@@ -3432,7 +3603,7 @@
               <p style={styles.pageSubtitle}>{contentLibrary.length} items -- grows every time you teach</p>
             </div>
             <button style={styles.btnPrimary} onClick={() => setShowAdd(true)}>
-              <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><Icons.Plus /> Quick Capture</span>
+              <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><Icons.Plus /> Quick Lesson</span>
             </button>
           </div>
 
@@ -3459,7 +3630,7 @@
           {filtered.length === 0 ? (
             <div style={styles.emptyState}>
               <div style={styles.emptyTitle}>Your library is empty</div>
-              <p>Hit "Quick Capture" to add your first piece of content -- a link, an exercise, a voicing chart.</p>
+              <p>Hit "Quick Lesson" to add your first piece of content -- a link, an exercise, a voicing chart.</p>
             </div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "16px" }}>
@@ -3796,6 +3967,7 @@
       if (activeTool === "scales") return <ScaleReference onBack={() => setActiveTool(null)} allowedScales={allowedScales} />;
       if (activeTool === "keyboard") return <PlayableKeyboard onBack={() => setActiveTool(null)} />;
       if (activeTool === "eartraining") return <EarTraining onBack={() => setActiveTool(null)} />;
+      if (activeTool === "backingtracks") return <BackingTracks onBack={() => setActiveTool(null)} />;
 
       const studentName = student?.name || "Student";
 
@@ -4013,6 +4185,7 @@
                 onOpenScales={() => setActiveTool("scales")}
                 onOpenKeyboard={() => setActiveTool("keyboard")}
                 onOpenEarTraining={() => setActiveTool("eartraining")}
+                onOpenBackingTracks={() => setActiveTool("backingtracks")}
               />
             ) : (
               <div className="student-container" style={styles.container}>
