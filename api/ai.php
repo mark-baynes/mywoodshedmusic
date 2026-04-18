@@ -1,5 +1,19 @@
 <?php
 // My Woodshed Music — AI API (powered by Anthropic Claude)
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+// Catch fatal errors and return JSON
+register_shutdown_function(function() {
+    $error = error_get_last();
+    if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        if (!headers_sent()) {
+            header('Content-Type: application/json');
+            http_response_code(500);
+        }
+        echo json_encode(['error' => 'PHP Fatal: ' . $error['message'], 'file' => basename($error['file']), 'line' => $error['line']]);
+    }
+});
 // POST /api/ai.php?action=generate_content     — create content from description
 // POST /api/ai.php?action=expand_shorthand     — expand shorthand into student instructions
 // POST /api/ai.php?action=youtube_import       — extract & describe YouTube video
@@ -7,6 +21,9 @@
 // POST /api/ai.php?action=bulk_generate        — bulk create chord/scale exercises
 
 require_once __DIR__ . '/helpers.php';
+
+// AI calls can take a while — extend PHP execution time
+set_time_limit(180);
 
 $action = $_GET['action'] ?? '';
 $body = getBody();
@@ -42,7 +59,12 @@ function callClaude($systemPrompt, $userMessage, $maxTokens = 1024) {
 
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
     curl_close($ch);
+
+    if ($response === false || $curlError) {
+        jsonResponse(['error' => 'AI request failed: ' . ($curlError ?: 'connection error')], 500);
+    }
 
     if ($httpCode !== 200) {
         $err = json_decode($response, true);
@@ -51,8 +73,11 @@ function callClaude($systemPrompt, $userMessage, $maxTokens = 1024) {
     }
 
     $result = json_decode($response, true);
+    if (!$result || !isset($result['choices'][0]['message']['content'])) {
+        jsonResponse(['error' => 'AI returned invalid response', 'detail' => substr($response, 0, 300)], 500);
+    }
     // OpenAI-compatible response format
-    return $result['choices'][0]['message']['content'] ?? '';
+    return $result['choices'][0]['message']['content'];
 }
 
 // ─── YouTube oEmbed metadata ───
@@ -448,51 +473,70 @@ Return ONLY a JSON object: {"enharmonic_map": {... the corrected map ...}}';
         $track = trim($body['track'] ?? 'Jazz');
         $type = trim($body['type'] ?? 'Practice');
         $contentId = trim($body['content_id'] ?? '');
-        if (!$title) jsonResponse(['error' => 'Title required'], 400);
+        $selectedUrl = trim($body['selected_url'] ?? '');
+        $artistSearch = trim($body['artist'] ?? '');
+        if (!$title && !$selectedUrl) jsonResponse(['error' => 'Title required'], 400);
 
-        // Ask AI to generate an SVG cover art design
-        $svgPrompt = "Create a beautiful, artistic SVG cover art image (400x400) for a piano piece called \"$title\" (genre: $track, type: $type).
-
-Requirements:
-- Output ONLY the raw SVG code, starting with <svg and ending with </svg>
-- Size: viewBox=\"0 0 400 400\"
-- Use a rich, atmospheric color palette appropriate to the genre:
-  - Jazz: deep blues, amber, smoky purples
-  - Contemporary: bright gradients, modern teal/coral
-  - Foundation: warm earth tones, gold, cream
-  - Crossover: vibrant mixed palette
-- Include abstract musical elements: piano keys, music notes, sound waves, staff lines, circles, geometric shapes
-- Make it visually striking with gradients, layered shapes, and depth
-- Do NOT include any readable text or words — purely visual/abstract
-- Use SVG elements: rect, circle, ellipse, path, polygon, line, linearGradient, radialGradient
-- Make it feel like professional album art";
-
-        $svgResult = callClaude($MUSIC_SYSTEM . "\n\nFor this request, generate SVG artwork. Output ONLY the SVG code, no JSON wrapping, no markdown fences, no explanation.", $svgPrompt, 4096);
-
-        // Extract SVG from response (in case AI wrapped it)
-        if (preg_match('/<svg[\s\S]*<\/svg>/i', $svgResult, $svgMatch)) {
-            $svg = $svgMatch[0];
-        } else {
-            jsonResponse(['error' => 'AI did not generate valid SVG', 'raw' => substr($svgResult, 0, 500)], 500);
+        // If a selected_url was provided, save it directly
+        if ($selectedUrl) {
+            if ($contentId) {
+                $db = getDB();
+                try { $db->exec('ALTER TABLE content ADD COLUMN cover_image_url VARCHAR(500) DEFAULT NULL'); } catch (PDOException $e) {}
+                $stmt = $db->prepare('UPDATE content SET cover_image_url = ? WHERE id = ? AND teacher_id = ?');
+                $stmt->execute([$selectedUrl, $contentId, $teacherId]);
+            }
+            jsonResponse(['cover_url' => $selectedUrl]);
+            break;
         }
 
-        // Save SVG as file
-        $uploadDir = __DIR__ . '/../uploads/covers/';
-        if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+        // Search iTunes — title only (no genre, which returns backing tracks)
+        $searchTerm = $artistSearch ? urlencode($title . ' ' . $artistSearch) : urlencode($title);
+        $ch = curl_init("https://itunes.apple.com/search?term={$searchTerm}&media=music&limit=20");
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 15, CURLOPT_FOLLOWLOCATION => true]);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
 
-        $filename = bin2hex(random_bytes(12)) . '.svg';
-        file_put_contents($uploadDir . $filename, $svg);
-        $localUrl = 'uploads/covers/' . $filename;
+        $allResults = [];
+        $skipWords = ['backing track', 'karaoke', 'minus one', 'play along', 'play-along', 'instrumental version', 'made famous', 'in the style', 'tribute to', 'cover version'];
 
-        // Save to content record if content_id provided
-        if ($contentId) {
-            $db = getDB();
-            try { $db->exec('ALTER TABLE content ADD COLUMN cover_image_url VARCHAR(500) DEFAULT NULL'); } catch (PDOException $e) {}
-            $stmt = $db->prepare('UPDATE content SET cover_image_url = ? WHERE id = ? AND teacher_id = ?');
-            $stmt->execute([$localUrl, $contentId, $teacherId]);
+        if ($httpCode === 200 && $response) {
+            $data = json_decode($response, true);
+            foreach (($data['results'] ?? []) as $r) {
+                $art = $r['artworkUrl100'] ?? '';
+                if (!$art) continue;
+                $artist = $r['artistName'] ?? '';
+                $album = $r['collectionName'] ?? '';
+                $combined = strtolower($artist . ' ' . $album);
+
+                // Filter out backing tracks, karaoke, etc
+                $skip = false;
+                foreach ($skipWords as $sw) {
+                    if (strpos($combined, $sw) !== false) { $skip = true; break; }
+                }
+                if ($skip) continue;
+
+                $allResults[] = [
+                    'url' => str_replace('100x100bb', '600x600bb', $art),
+                    'thumb' => str_replace('100x100bb', '200x200bb', $art),
+                    'artist' => $artist,
+                    'album' => $album,
+                    'track' => $r['trackName'] ?? '',
+                ];
+            }
         }
 
-        jsonResponse(['cover_url' => $localUrl]);
+        // Deduplicate by album artwork URL
+        $seen = [];
+        $unique = [];
+        foreach ($allResults as $r) {
+            if (!in_array($r['url'], $seen)) {
+                $seen[] = $r['url'];
+                $unique[] = $r;
+            }
+        }
+
+        jsonResponse(['choices' => array_slice($unique, 0, 12)]);
         break;
 
     // ─── AI Recording Feedback ───
@@ -507,33 +551,33 @@ Requirements:
 
         if (!$contentTitle) jsonResponse(['error' => 'content_title required'], 400);
 
-        $feedbackPrompt = "You are an AI practice coach for a piano student. The student just finished recording themselves practising. Generate helpful, specific feedback and listening guidance.
+                $feedbackPrompt = 'You are an AI practice coach for a piano student. The student just finished recording themselves practising. Generate helpful, specific feedback and listening guidance.
 
 Practice context:
-- Content: "$contentTitle"
-- Type: $contentType
-- Instructions: "$contentDescription"
-" . ($stepNotes ? "- Teacher notes for this step: "$stepNotes"
-" : "") . ($studentLevel ? "- Student level: $studentLevel
-" : "") . ($selfAssessment ? "- Student's self-assessment: "$selfAssessment"
-" : "") . "
+- Content: "' . $contentTitle . '"
+- Type: ' . $contentType . '
+- Instructions: "' . $contentDescription . '"
+' . ($stepNotes ? '- Teacher notes for this step: "' . $stepNotes . '"
+' : '') . ($studentLevel ? '- Student level: ' . $studentLevel . '
+' : '') . ($selfAssessment ? '- Student self-assessment: "' . $selfAssessment . '"
+' : '') . '
 
 Since you cannot listen to the audio, provide:
-1. **Listening Guide** — 3-4 specific things the student should listen for when playing back their recording, tailored to this specific piece/exercise. Be very specific about what to focus on (e.g. "Listen to your left hand in bars where the chord changes — are the transitions smooth?").
+1. Listening Guide — 3-4 specific things the student should listen for when playing back their recording, tailored to this specific piece/exercise.
 
-2. **Common Pitfalls** — 2-3 common issues students encounter with this type of material at this level, so they know what to watch for.
+2. Common Pitfalls — 2-3 common issues students encounter with this type of material at this level.
 
-3. **Practice Tips** — 2-3 targeted suggestions for how to improve based on the content type (e.g. for a jazz standard: work on swing feel; for scales: focus on evenness between hands).
+3. Practice Tips — 2-3 targeted suggestions for how to improve based on the content type.
 
-4. **Self-Check Questions** — 3 yes/no questions the student can answer honestly after listening to their recording (e.g. "Was my tempo steady throughout?" "Did I maintain consistent dynamics?").
+4. Self-Check Questions — 3 yes/no questions the student can answer honestly after listening to their recording.
 
-Keep the tone encouraging and constructive — like a supportive teacher. Use the student's practice context to make advice specific, not generic.
+Keep the tone encouraging and constructive. Use the student practice context to make advice specific, not generic.
 
 Respond with a JSON object:
 {
   "feedback_html": "the complete feedback as clean HTML (h3 for sections, ul/li for lists, p for paragraphs)",
-  "headline": "one encouraging line, e.g. 'Great work recording yourself — here\'s what to listen for'"
-}";
+  "headline": "one encouraging line"
+}';
 
         $result = callClaude($MUSIC_SYSTEM, $feedbackPrompt, 1536);
         $parsed = json_decode($result, true);
@@ -594,23 +638,23 @@ Respond with a JSON object:
             'preferences' => $preferences,
         ], JSON_PRETTY_PRINT);
 
-        $suggestPrompt = "You are an intelligent practice planning assistant for a piano teacher. Based on the student's profile, their assignment history, teacher observations, and the available content library, suggest what this student should work on next.
+        $suggestPrompt = 'You are an intelligent practice planning assistant for a piano teacher. Based on the student profile, assignment history, teacher observations, and available content library, suggest what this student should work on next.
 
 Here is all the data:
 
-$dataPayload
+' . $dataPayload . '
 
 Analyse what the student has already covered, what they found easy vs difficult (from feedback), and what gaps exist. Then create a suggested practice assignment.
 
 Rules:
 - Prefer content from the existing library (use the content id)
-- You can suggest new content items too (mark source as "new")
-- Order steps in a pedagogically sound sequence (warm-up → new material → practice → review)
+- You can suggest new content items too (mark source as new)
+- Order steps in a pedagogically sound sequence (warm-up, new material, practice, review)
 - Include 4-7 steps
-- Consider the student's level and preferences
-- If they struggled with something (feedback like 'hard' or 'need_help'), include review of that material
-- If they found things easy ('easy', 'nailed_it'), progress to harder material
-- Don't repeatedly assign the same content unless it needs review
+- Consider the student level and preferences
+- If they struggled with something (feedback like hard or need_help), include review of that material
+- If they found things easy (easy, nailed_it), progress to harder material
+- Do not repeatedly assign the same content unless it needs review
 
 Respond with a JSON object:
 {
@@ -618,7 +662,7 @@ Respond with a JSON object:
   "week_label": "a descriptive label for this week",
   "steps": [
     {
-      "source": "library" or "new",
+      "source": "library or new",
       "content_id": "id from library if source is library, null if new",
       "title": "title of the content item",
       "type": "Watch|Play|Practice|Listen|Review",
@@ -627,7 +671,7 @@ Respond with a JSON object:
       "new_description": "full description if this is a new content item, null if from library"
     }
   ]
-}";
+}';
 
         $result = callClaude($MUSIC_SYSTEM, $suggestPrompt, 2048);
         $parsed = json_decode($result, true);
@@ -721,31 +765,31 @@ Respond with a JSON object:
             'preferences' => $preferences,
         ], JSON_PRETTY_PRINT);
 
-        $summaryPrompt = "You are generating a weekly AI practice summary for a piano teacher about one of their students. This summary helps the teacher quickly understand how their student is progressing and what to focus on in the next lesson.
+        $summaryPrompt = 'You are generating a weekly AI practice summary for a piano teacher about one of their students. This summary helps the teacher quickly understand how their student is progressing and what to focus on in the next lesson.
 
 Here is all the available data about this student:
 
-$dataPayload
+' . $dataPayload . '
 
 Generate a concise, insightful practice summary with these sections:
 
-1. **Overview** (2-3 sentences) — Overall picture of how the student is doing this period. Mention practice time, completion rate, and general trajectory.
+1. Overview (2-3 sentences) - Overall picture of how the student is doing this period. Mention practice time, completion rate, and general trajectory.
 
-2. **Strengths** (2-3 bullet points) — What's going well based on feedback, observations, and completion patterns.
+2. Strengths (2-3 bullet points) - What is going well based on feedback, observations, and completion patterns.
 
-3. **Areas for Focus** (2-3 bullet points) — What needs attention. Be specific about which content items or skills show difficulty. Reference the student's self-reported feedback and teacher observations.
+3. Areas for Focus (2-3 bullet points) - What needs attention. Be specific about which content items or skills show difficulty.
 
-4. **Mood & Engagement** (1-2 sentences) — If check-in data is available, note any patterns in confidence or mood. If not, skip this section.
+4. Mood and Engagement (1-2 sentences) - If check-in data is available, note any patterns in confidence or mood. If not, skip this section.
 
-5. **Suggested Next Steps** (2-3 specific, actionable suggestions) — What the teacher should consider for the next lesson or assignment. Be practical and music-specific.
+5. Suggested Next Steps (2-3 specific, actionable suggestions) - What the teacher should consider for the next lesson or assignment.
 
-Keep the tone professional but warm — you're a helpful teaching assistant, not a clinical report. Use the student's name. If data is sparse, acknowledge that and focus on what you can infer.
+Keep the tone professional but warm. Use the student name. If data is sparse, acknowledge that and focus on what you can infer.
 
 Respond with a JSON object:
 {
-  \"summary_html\": \"the complete summary as clean HTML (use h3 for section titles, ul/li for lists, p for paragraphs)\",
-  \"headline\": \"one-line headline summarising the student's status, e.g. 'Solid progress on jazz voicings, needs work on rhythm'\"
-}";
+  "summary_html": "the complete summary as clean HTML (use h3 for section titles, ul/li for lists, p for paragraphs)",
+  "headline": "one-line headline summarising the student status"
+}';
 
         $result = callClaude($MUSIC_SYSTEM, $summaryPrompt, 2048);
         $parsed = json_decode($result, true);
