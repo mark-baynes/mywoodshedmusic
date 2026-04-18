@@ -32,7 +32,7 @@ switch ($method) {
         if (!$title) jsonResponse(['error' => 'Title required'], 400);
 
         $id = generateId();
-        $stmt = $db->prepare('INSERT INTO content (id, teacher_id, title, type, track, description, url, pdf_url, lesson_content) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        $stmt = $db->prepare('INSERT INTO content (id, teacher_id, title, type, track, description, url, pdf_url, lesson_content, is_backing_track) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
         $stmt->execute([
             $id, $teacherId, $title,
             $body['type'] ?? 'Practice',
@@ -40,10 +40,11 @@ switch ($method) {
             $body['description'] ?? '',
             $body['url'] ?? '',
             $body['pdf_url'] ?? null,
-            $body['lesson_content'] ?? null
+            $body['lesson_content'] ?? null,
+            $body['is_backing_track'] ?? 0
         ]);
 
-        jsonResponse(['id' => $id, 'title' => $title, 'type' => $body['type'] ?? 'Practice', 'track' => $body['track'] ?? 'Foundation', 'description' => $body['description'] ?? '', 'url' => $body['url'] ?? '', 'pdf_url' => $body['pdf_url'] ?? null, 'lesson_content' => $body['lesson_content'] ?? null, 'created_at' => date('Y-m-d H:i:s')], 201);
+        jsonResponse(['id' => $id, 'title' => $title, 'type' => $body['type'] ?? 'Practice', 'track' => $body['track'] ?? 'Foundation', 'description' => $body['description'] ?? '', 'url' => $body['url'] ?? '', 'pdf_url' => $body['pdf_url'] ?? null, 'lesson_content' => $body['lesson_content'] ?? null, 'is_backing_track' => $body['is_backing_track'] ?? 0, 'created_at' => date('Y-m-d H:i:s')], 201);
         break;
 
     case 'PUT':
@@ -51,8 +52,8 @@ switch ($method) {
         if (!$id) jsonResponse(['error' => 'Content ID required'], 400);
 
         $body = getBody();
-        $stmt = $db->prepare('UPDATE content SET title = COALESCE(?, title), type = COALESCE(?, type), track = COALESCE(?, track), description = COALESCE(?, description), url = COALESCE(?, url), pdf_url = COALESCE(?, pdf_url), lesson_content = COALESCE(?, lesson_content) WHERE id = ? AND teacher_id = ?');
-        $stmt->execute([$body['title'] ?? null, $body['type'] ?? null, $body['track'] ?? null, $body['description'] ?? null, $body['url'] ?? null, $body['pdf_url'] ?? null, $body['lesson_content'] ?? null, $id, $teacherId]);
+        $stmt = $db->prepare('UPDATE content SET title = COALESCE(?, title), type = COALESCE(?, type), track = COALESCE(?, track), description = COALESCE(?, description), url = COALESCE(?, url), pdf_url = COALESCE(?, pdf_url), lesson_content = COALESCE(?, lesson_content), is_backing_track = COALESCE(?, is_backing_track) WHERE id = ? AND teacher_id = ?');
+        $stmt->execute([$body['title'] ?? null, $body['type'] ?? null, $body['track'] ?? null, $body['description'] ?? null, $body['url'] ?? null, $body['pdf_url'] ?? null, $body['lesson_content'] ?? null, isset($body['is_backing_track']) ? (int)$body['is_backing_track'] : null, $id, $teacherId]);
 
         jsonResponse(['success' => true]);
         break;

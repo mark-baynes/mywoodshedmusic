@@ -1911,24 +1911,21 @@
     // TOOLBOX (container for tools)
     // ============================================================
 
-    function BackingTracks({ onBack, assignments }) {
+    function BackingTracks({ onBack, token }) {
       const [customUrl, setCustomUrl] = useState("");
-      const [activeTrack, setActiveTrack] = useState(null); // { url, title }
+      const [activeTrack, setActiveTrack] = useState(null);
+      const [backingTracks, setBackingTracks] = useState([]);
+      const [loading, setLoading] = useState(true);
 
-      // Extract backing tracks from assignments
-      const backingTracks = [];
-      const seen = new Set();
-      (assignments || []).forEach(a => {
-        (a.steps || []).forEach(step => {
-          const type = step.content_type || "";
-          const url = step.content_url || "";
-          const title = step.content_title || "Untitled";
-          if (type === "Backing Track" && url && !seen.has(url)) {
-            seen.add(url);
-            backingTracks.push({ url, title, weekLabel: a.weekLabel || a.week_label });
-          }
-        });
-      });
+      useEffect(() => {
+        (async () => {
+          try {
+            const data = await apiFetch('backing_tracks.php', {}, token);
+            setBackingTracks(data.map(t => ({ url: t.url, title: t.title, description: t.description, track: t.track })));
+          } catch (e) { console.error('Failed to load backing tracks:', e); }
+          setLoading(false);
+        })();
+      }, [token]);
 
       const loadCustom = () => {
         const trimmed = customUrl.trim();
@@ -1949,7 +1946,9 @@
             <h2 style={{ ...styles.pageTitle, fontSize: "22px" }}>Backing Tracks</h2>
             <p style={{ ...styles.pageSubtitle, marginBottom: "20px" }}>Slow down and transpose backing tracks for practice</p>
 
-            {/* Assigned backing tracks */}
+            {loading && <Loading message="Loading backing tracks..." />}
+
+            {/* Teacher's backing tracks */}
             {backingTracks.length > 0 && (
               <div style={{ marginBottom: "20px" }}>
                 <div style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", color: "#94a3b8", marginBottom: "10px" }}>Your Backing Tracks</div>
@@ -1965,7 +1964,8 @@
                       </div>
                       <div>
                         <div style={{ fontWeight: 600, color: "#1e293b", fontSize: "14px" }}>{bt.title}</div>
-                        {bt.weekLabel && <div style={{ fontSize: "11px", color: "#94a3b8" }}>{bt.weekLabel}</div>}
+                        {bt.track && <div style={{ fontSize: "11px", color: "#94a3b8" }}>{bt.track}</div>}
+                        {bt.description && <div style={{ fontSize: "11px", color: "#94a3b8" }}>{bt.description}</div>}
                       </div>
                     </button>
                   ))}
@@ -1997,8 +1997,8 @@
                   <polygon points="5 3 19 12 5 21 5 3" fill="currentColor" opacity="0.1"/>
                   <polygon points="5 3 19 12 5 21 5 3"/>
                 </svg>
-                <div style={{ fontSize: "16px", fontWeight: 500, marginBottom: "8px" }}>No backing tracks assigned yet</div>
-                <div style={{ fontSize: "13px" }}>Your teacher can assign backing tracks, or paste a YouTube URL above</div>
+                <div style={{ fontSize: "16px", fontWeight: 500, marginBottom: "8px" }}>No backing tracks yet</div>
+                <div style={{ fontSize: "13px" }}>Your teacher can add backing tracks from the library, or paste a YouTube URL above</div>
               </div>
             )}
           </div>
@@ -3757,6 +3757,21 @@
                       }} />
                     </label>
                     {students && students.length > 0 && <QuickAssignButton contentId={content.id} students={students} onAssign={onQuickAssign} />}
+                    <button onClick={async () => {
+                      try {
+                        await apiFetch('content.php?id=' + content.id, { method: 'PUT', body: JSON.stringify({ is_backing_track: content.is_backing_track ? 0 : 1 }) }, token);
+                        await onRefreshContent();
+                      } catch(e) { alert(e.message); }
+                    }} style={{
+                      fontSize: "12px", padding: "4px 10px",
+                      background: content.is_backing_track ? "rgba(249,115,22,0.15)" : "rgba(0,0,0,0.04)",
+                      color: content.is_backing_track ? "#f97316" : "#94a3b8",
+                      border: content.is_backing_track ? "1px solid rgba(249,115,22,0.3)" : "1px solid rgba(0,0,0,0.08)",
+                      borderRadius: "6px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px",
+                    }} title={content.is_backing_track ? "Remove from backing tracks" : "Add to backing tracks"}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                      {content.is_backing_track ? "Backing Track ✓" : "Backing Track"}
+                    </button>
                     <GenerateLessonButton content={content} token={token} onLessonGenerated={(id, html) => { onViewLesson(id, html); onRefreshContent(); }} />
                     {content.lesson_content && (
                       <>
@@ -4009,7 +4024,7 @@
       if (activeTool === "scales") return <ScaleReference onBack={() => setActiveTool(null)} allowedScales={allowedScales} />;
       if (activeTool === "keyboard") return <PlayableKeyboard onBack={() => setActiveTool(null)} />;
       if (activeTool === "eartraining") return <EarTraining onBack={() => setActiveTool(null)} />;
-      if (activeTool === "backingtracks") return <BackingTracks onBack={() => setActiveTool(null)} assignments={assignments} />;
+      if (activeTool === "backingtracks") return <BackingTracks onBack={() => setActiveTool(null)} token={token} />;
 
       const studentName = student?.name || "Student";
 
