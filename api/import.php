@@ -149,5 +149,29 @@ foreach ($importOrder as $table) {
     $results[$table] = ['imported' => $imported, 'skipped' => $skipped];
 }
 
+// Extract uploaded files (PDFs and audio) from ZIP
+$baseDir = __DIR__ . '/../';
+$fileCount = 0;
+for ($i = 0; $i < $zip->numFiles; $i++) {
+    $name = $zip->getNameIndex($i);
+    // Only extract files from uploads/ directories
+    if (strpos($name, 'uploads/') === 0) {
+        $destPath = $baseDir . $name;
+        $destDir = dirname($destPath);
+        if (!is_dir($destDir)) mkdir($destDir, 0755, true);
+        // Don't overwrite existing files
+        if (!file_exists($destPath)) {
+            $fileData = $zip->getFromIndex($i);
+            if ($fileData !== false) {
+                file_put_contents($destPath, $fileData);
+                $fileCount++;
+            }
+        }
+    }
+}
+if ($fileCount > 0) {
+    $results['uploaded_files'] = $fileCount . ' files restored';
+}
+
 $zip->close();
 jsonResponse(['success' => true, 'results' => $results]);

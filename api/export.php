@@ -140,6 +140,56 @@ if ($scope === 'all') {
     }
 }
 
+// Bundle actual upload files (PDFs and audio)
+$baseDir = __DIR__ . '/../';
+$filePatterns = [];
+
+if ($scope === 'all') {
+    // Admin: grab all uploaded files
+    $stmt = $db->query("SELECT pdf_url, audio_url FROM content WHERE pdf_url IS NOT NULL AND pdf_url != '' OR audio_url IS NOT NULL AND audio_url != ''");
+} else {
+    // Teacher: only their content files
+    $stmt = $db->prepare("SELECT pdf_url, audio_url FROM content WHERE teacher_id = ? AND (pdf_url IS NOT NULL AND pdf_url != '' OR audio_url IS NOT NULL AND audio_url != '')");
+    $stmt->execute([$teacherId]);
+}
+
+// Also grab student audio recordings from progress
+if ($scope === 'all') {
+    $audioStmt = $db->query("SELECT audio_url FROM progress WHERE audio_url IS NOT NULL AND audio_url != ''");
+} else if (!empty($studentIds)) {
+    $placeholders = implode(',', array_fill(0, count($studentIds), '?'));
+    $audioStmt = $db->prepare("SELECT audio_url FROM progress WHERE student_id IN ($placeholders) AND audio_url IS NOT NULL AND audio_url != ''");
+    $audioStmt->execute($studentIds);
+} else {
+    $audioStmt = null;
+}
+
+$addedFiles = [];
+foreach ($stmt->fetchAll() as $row) {
+    foreach (['pdf_url', 'audio_url'] as $field) {
+        $path = $row[$field] ?? '';
+        if ($path && !isset($addedFiles[$path])) {
+            $fullPath = $baseDir . $path;
+            if (file_exists($fullPath)) {
+                $zip->addFile($fullPath, $path);
+                $addedFiles[$path] = true;
+            }
+        }
+    }
+}
+if ($audioStmt) {
+    foreach ($audioStmt->fetchAll() as $row) {
+        $path = $row['audio_url'] ?? '';
+        if ($path && !isset($addedFiles[$path])) {
+            $fullPath = $baseDir . $path;
+            if (file_exists($fullPath)) {
+                $zip->addFile($fullPath, $path);
+                $addedFiles[$path] = true;
+            }
+        }
+    }
+}
+
 $zip->close();
 
 $filename = $scope === 'all' ? 'woodshed_all_data_' . date('Y-m-d') . '.zip' : 'my_data_' . date('Y-m-d') . '.zip';
