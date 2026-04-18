@@ -3697,6 +3697,10 @@
     function StudentToolboxAccess({ studentId, studentName, token }) {
       const [allowedScales, setAllowedScales] = useState(null); // null = all allowed
       const [allowedChords, setAllowedChords] = useState(null);
+      const [showStudentTour, setShowStudentTour] = useState(() => {
+        if (!isStudentAuth) return false; // Don't show tour when teacher is viewing as student
+        try { return !sessionStorage.getItem('woodshed_student_tour_done'); } catch(e) { return true; }
+      });
       const [saving, setSaving] = useState(false);
       const [saved, setSaved] = useState(false);
       const [loaded, setLoaded] = useState(false);
@@ -5858,6 +5862,16 @@
               onSubmit={(feedback, note) => submitFeedback(showFeedback.stepId, feedback, note)}
             />
           )}
+
+          {/* Student Guided Tour */}
+          {showStudentTour && (
+            <GuidedTour
+              steps={STUDENT_TOUR_STEPS}
+              onClose={() => { setShowStudentTour(false); try { sessionStorage.setItem('woodshed_student_tour_done', '1'); } catch(e) {} }}
+              onNavigate={(tab) => setActiveTab(tab)}
+            />
+          )}
+          {isStudentAuth && <TourHelpButton onClick={() => setShowStudentTour(true)} />}
         </div>
       );
     }
@@ -6658,6 +6672,221 @@
 
     // MAIN APP
     // ============================================================
+    // GUIDED TOUR
+    // ============================================================
+
+    const TEACHER_TOUR_STEPS = [
+      {
+        title: "Welcome to My Woodshed Music!",
+        body: "This quick tour will show you the key features for managing your students' practice. You can revisit this tour anytime from the help button.",
+        icon: "sparkle",
+      },
+      {
+        title: "Dashboard",
+        body: "Your home base. See an overview of all your students, who's been practising, and which assignments are active. A quick snapshot before each lesson.",
+        icon: "dashboard",
+        nav: "dashboard",
+      },
+      {
+        title: "Students",
+        body: "Add and manage your students here. Each student gets their own login code. You can view their progress, add observations, generate AI practice summaries, and see how they're tracking.",
+        icon: "user",
+        nav: "students",
+      },
+      {
+        title: "Content Library",
+        body: "Your teaching toolkit. Add pieces, exercises, YouTube videos, PDFs, and MP3s. Use AI tools to import from YouTube, bulk-generate exercises, or describe content in shorthand and let AI expand it. Everything you add here can be assigned to students.",
+        icon: "book",
+        nav: "library",
+      },
+      {
+        title: "Assignments",
+        body: "Build weekly practice assignments by dragging content from your library into step-by-step practice plans. Each assignment has a week label and ordered steps. Students see these as their practice checklist.",
+        icon: "clipboard",
+        nav: "assignments",
+      },
+      {
+        title: "Toolbox",
+        body: "Control which practice tools each student can access: metronome, chord reference, scale reference, playable keyboard, ear training, and backing tracks. You can customise which chords and scales appear for each student.",
+        icon: "wrench",
+        nav: "toolbox",
+      },
+      {
+        title: "Student View",
+        body: "Use the 'Student View' dropdown in the top bar to see exactly what any student sees when they log in. Great for checking assignments look right before the lesson.",
+        icon: "eye",
+      },
+      {
+        title: "AI Tools",
+        body: "AI features are sprinkled throughout: content generation, YouTube import with smart tagging, practice summaries, smart assignment suggestions, and recording feedback. Look for the sparkle icons.",
+        icon: "sparkle",
+      },
+      {
+        title: "You're all set!",
+        body: "Start by adding a student, building some content, and creating your first assignment. Hit the ? button in the bottom corner anytime to revisit this tour. Happy teaching!",
+        icon: "check",
+      },
+    ];
+
+    const STUDENT_TOUR_STEPS = [
+      {
+        title: "Welcome to My Woodshed Music!",
+        body: "This is your practice hub. Your teacher sets up assignments for you each week, and you work through them here. Let's take a quick look around.",
+        icon: "sparkle",
+      },
+      {
+        title: "Practice Tab",
+        body: "This is where you'll spend most of your time. Your current assignment shows up as a checklist of practice steps. Work through each one, tick them off as you go, and use the built-in timer to track your practice time.",
+        icon: "music",
+        nav: "practice",
+      },
+      {
+        title: "Recording & Feedback",
+        body: "Many steps let you record yourself playing. Hit the microphone button to capture a take, then get AI feedback on your performance. Your teacher can listen to your recordings too.",
+        icon: "mic",
+      },
+      {
+        title: "Toolbox",
+        body: "Your practice toolkit: metronome, chord charts, scale references, a playable keyboard, ear training exercises, and backing tracks. Your teacher controls which tools are available to you.",
+        icon: "wrench",
+        nav: "toolbox",
+      },
+      {
+        title: "Profile & Preferences",
+        body: "Set up your profile and tell your teacher about your learning style. This helps them tailor your assignments and helps the AI give you better feedback.",
+        icon: "user",
+        nav: "profile",
+      },
+      {
+        title: "Past Assignments",
+        body: "Scroll down on the Practice tab to find your past assignments. You can always go back and revisit previous weeks' work.",
+        icon: "clipboard",
+        nav: "practice",
+      },
+      {
+        title: "Ready to practise!",
+        body: "Start with your current assignment and work through the steps. Your teacher gets notified when you complete everything. Happy practising!",
+        icon: "check",
+      },
+    ];
+
+    function GuidedTour({ steps, onClose, onNavigate }) {
+      const [step, setStep] = useState(0);
+      const current = steps[step];
+      const isLast = step === steps.length - 1;
+      const isFirst = step === 0;
+
+      useEffect(() => {
+        if (current.nav && onNavigate) {
+          onNavigate(current.nav);
+        }
+      }, [step]);
+
+      const tourIcons = {
+        sparkle: () => <AIIcons.Sparkle />,
+        dashboard: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>,
+        user: () => <Icons.User />,
+        book: () => <Icons.Book />,
+        clipboard: () => <Icons.Clipboard />,
+        wrench: () => <Icons.Wrench />,
+        eye: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
+        music: () => <Icons.Music />,
+        mic: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>,
+        check: () => <Icons.Check />,
+      };
+
+      const IconEl = tourIcons[current.icon] || tourIcons.sparkle;
+
+      return (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 10000,
+          background: "rgba(15, 23, 42, 0.6)", backdropFilter: "blur(4px)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: "20px",
+        }} onClick={onClose}>
+          <div style={{
+            background: "#fff", borderRadius: "16px", maxWidth: "480px", width: "100%",
+            boxShadow: "0 24px 48px rgba(0,0,0,0.2)", overflow: "hidden",
+          }} onClick={e => e.stopPropagation()}>
+            {/* Progress bar */}
+            <div style={{ height: "3px", background: "#f1f5f9" }}>
+              <div style={{
+                height: "100%", background: "linear-gradient(90deg, #d97706, #fbbf24)",
+                width: `${((step + 1) / steps.length) * 100}%`,
+                transition: "width 0.3s ease",
+              }} />
+            </div>
+
+            <div style={{ padding: "32px" }}>
+              {/* Icon */}
+              <div style={{
+                width: "48px", height: "48px", borderRadius: "12px",
+                background: "linear-gradient(135deg, #1e293b, #334155)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: "#fbbf24", marginBottom: "20px",
+              }}>
+                <IconEl />
+              </div>
+
+              {/* Content */}
+              <h3 style={{ fontSize: "18px", fontWeight: 600, color: "#1e293b", margin: "0 0 10px 0" }}>
+                {current.title}
+              </h3>
+              <p style={{ fontSize: "14px", color: "#64748b", lineHeight: 1.6, margin: "0 0 24px 0" }}>
+                {current.body}
+              </p>
+
+              {/* Step counter */}
+              <div style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "16px" }}>
+                Step {step + 1} of {steps.length}
+              </div>
+
+              {/* Navigation */}
+              <div style={{ display: "flex", gap: "8px", justifyContent: "space-between" }}>
+                <div>
+                  <button onClick={onClose} style={{
+                    ...styles.btnGhost, fontSize: "13px", padding: "8px 16px",
+                  }}>Skip Tour</button>
+                </div>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  {!isFirst && (
+                    <button onClick={() => setStep(s => s - 1)} style={{
+                      ...styles.btnGhost, fontSize: "13px", padding: "8px 16px",
+                    }}>Back</button>
+                  )}
+                  <button onClick={() => isLast ? onClose() : setStep(s => s + 1)} style={{
+                    ...styles.btnPrimary, fontSize: "13px", padding: "8px 20px",
+                  }}>
+                    {isLast ? "Get Started" : "Next"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function TourHelpButton({ onClick }) {
+      return (
+        <button onClick={onClick} style={{
+          position: "fixed", bottom: "24px", left: "24px", zIndex: 90,
+          width: "40px", height: "40px", borderRadius: "50%",
+          background: "linear-gradient(135deg, #1e293b, #334155)",
+          color: "#fbbf24", border: "none", cursor: "pointer",
+          boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: "18px", fontWeight: 700,
+          transition: "transform 0.2s ease",
+        }} onMouseEnter={e => e.currentTarget.style.transform = "scale(1.1)"}
+           onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+           title="Take a guided tour">
+          ?
+        </button>
+      );
+    }
+
+    // ============================================================
 
     function App() {
       // Auth state -- token stored in React state, NOT localStorage
@@ -6978,6 +7207,16 @@
               />
             )}
           </div>
+          {/* Guided Tour */}
+          {showTour && (
+            <GuidedTour
+              steps={TEACHER_TOUR_STEPS}
+              onClose={() => { setShowTour(false); try { sessionStorage.setItem('woodshed_teacher_tour_done', '1'); } catch(e) {} }}
+              onNavigate={(page) => setTeacherPage(page)}
+            />
+          )}
+          <TourHelpButton onClick={() => setShowTour(true)} />
+
           <div style={{ textAlign: "center", padding: "20px 0 12px", fontSize: "11px", color: "#94a3b8" }}>
             &copy; {new Date().getFullYear()} Boing Media Ltd. Created by Dr Mark Baynes.
           </div>
