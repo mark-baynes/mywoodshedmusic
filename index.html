@@ -3125,7 +3125,7 @@
     // TOOLBOX (container for tools)
     // ============================================================
 
-    function BackingTracks({ onBack, token }) {
+    function BackingTracks({ onBack, token, teacherName }) {
       const [customUrl, setCustomUrl] = useState("");
       const [activeTrack, setActiveTrack] = useState(null);
       const [backingTracks, setBackingTracks] = useState([]);
@@ -3445,7 +3445,7 @@
     // STUDENT LEARNING PREFERENCES QUESTIONNAIRE
     // ============================================================
 
-    function StudentPreferencesForm({ studentId, token, onSaved }) {
+    function StudentPreferencesForm({ studentId, token, onSaved, teacherName }) {
       const [prefs, setPrefs] = useState({ workload_pref: "moderate", task_size_pref: "mixed", stress_level: 3, practice_time_pref: 30, learning_style: "", free_notes: "" });
       const [loading, setLoading] = useState(true);
       const [saving, setSaving] = useState(false);
@@ -5681,7 +5681,7 @@
       const [allowedScales, setAllowedScales] = useState(null);
       const [allowedChords, setAllowedChords] = useState(null);
       const [showStudentTour, setShowStudentTour] = useState(() => {
-        try { return !sessionStorage.getItem('woodshed_student_tour_done'); } catch(e) { return true; }
+        try { return !localStorage.getItem('woodshed_student_tour_done'); } catch(e) { return true; }
       });
       const [showStudentHelp, setShowStudentHelp] = useState(false);
       const teacherName = teacherNameProp || student?.teacher_name || "your teacher";
@@ -5721,7 +5721,7 @@
       if (activeTool === "scales") return <ScaleReference onBack={() => setActiveTool(null)} allowedScales={allowedScales} token={token} canEdit={!isStudentAuth} />;
       if (activeTool === "keyboard") return <PlayableKeyboard onBack={() => setActiveTool(null)} />;
       if (activeTool === "eartraining") return <EarTraining onBack={() => setActiveTool(null)} />;
-      if (activeTool === "backingtracks") return <BackingTracks onBack={() => setActiveTool(null)} token={token} />;
+      if (activeTool === "backingtracks") return <BackingTracks onBack={() => setActiveTool(null)} token={token} teacherName={teacherName} />;
 
       const studentName = student?.name || "Student";
 
@@ -6031,6 +6031,7 @@
                 onOpenBackingTracks={() => setActiveTool("backingtracks")}
               />
             ) : (
+              <ErrorBoundary>
               <div className="student-container" style={styles.container}>
                 <h2 style={{ ...styles.pageTitle, fontSize: "22px" }}>My Profile</h2>
 
@@ -6041,9 +6042,10 @@
                 <h3 style={{ fontSize: "18px", fontWeight: 600, color: "#1e293b", marginBottom: "8px" }}>Learning Preferences <HelpTip text={`Fill this in so ${teacherName} can tailor assignments to how you learn. It also helps the AI give you better practice suggestions.`} /></h3>
                 <p style={{ fontSize: "14px", color: "#64748b", marginBottom: "12px" }}>Help {teacherName} understand how you learn best</p>
                 <div style={styles.card}>
-                  <StudentPreferencesForm studentId={studentId} token={token} />
+                  <StudentPreferencesForm studentId={studentId} token={token} teacherName={teacherName} />
                 </div>
               </div>
+              </ErrorBoundary>
             )}
           </div>
 
@@ -6168,7 +6170,7 @@
           {showStudentTour && (
             <GuidedTour
               steps={getStudentTourSteps(teacherName)}
-              onClose={() => { setShowStudentTour(false); try { sessionStorage.setItem('woodshed_student_tour_done', '1'); } catch(e) {} }}
+              onClose={() => { setShowStudentTour(false); try { localStorage.setItem('woodshed_student_tour_done', '1'); } catch(e) {} }}
               onNavigate={(tab) => setActiveTab(tab)}
             />
           )}
@@ -7387,6 +7389,23 @@
 
     // ============================================================
 
+
+    // Error Boundary for debugging
+    class ErrorBoundary extends React.Component {
+      constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+      static getDerivedStateFromError(error) { return { hasError: true, error }; }
+      componentDidCatch(error, info) { console.error('ErrorBoundary caught:', error, info); }
+      render() {
+        if (this.state.hasError) {
+          return React.createElement('div', {style: {padding: '20px', color: 'red', background: '#fff0f0', margin: '20px', borderRadius: '8px'}},
+            React.createElement('h3', null, 'Something went wrong'),
+            React.createElement('pre', {style: {fontSize: '12px', whiteSpace: 'pre-wrap'}}, String(this.state.error))
+          );
+        }
+        return this.props.children;
+      }
+    }
+
     function App() {
       // Auth state -- token stored in React state, NOT localStorage
       const [token, setToken] = useState(null);
@@ -7409,7 +7428,7 @@
       const [showTour, setShowTour] = useState(false);
       useEffect(() => {
         try {
-          if (!sessionStorage.getItem('woodshed_teacher_tour_done')) {
+          if (!localStorage.getItem('woodshed_teacher_tour_done')) {
             const timer = setTimeout(() => setShowTour(true), 800);
             return () => clearTimeout(timer);
           }
@@ -7727,7 +7746,7 @@
           {showTour && (
             <GuidedTour
               steps={TEACHER_TOUR_STEPS}
-              onClose={() => { setShowTour(false); try { sessionStorage.setItem('woodshed_teacher_tour_done', '1'); } catch(e) {} }}
+              onClose={() => { setShowTour(false); try { localStorage.setItem('woodshed_teacher_tour_done', '1'); } catch(e) {} }}
               onNavigate={(page) => setTeacherPage(page)}
             />
           )}
