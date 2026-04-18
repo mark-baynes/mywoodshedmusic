@@ -909,6 +909,25 @@
       const [loading, setLoading] = useState(false);
       const [inviteCode, setInviteCode] = useState("");
       const [pendingMessage, setPendingMessage] = useState("");
+      const [demoLoading, setDemoLoading] = useState("");
+
+      const startDemo = async (mode) => {
+        setDemoLoading(mode);
+        setError("");
+        try {
+          const action = mode === "teacher" ? "start_teacher" : "start_student";
+          const data = await apiFetch("demo.php?action=" + action, { method: "POST" });
+          if (mode === "teacher") {
+            onAuth(data.token, data.teacher);
+          } else {
+            onStudentAuth(data.token, data.student);
+          }
+        } catch (err) {
+          setError("Demo failed: " + err.message);
+        } finally {
+          setDemoLoading("");
+        }
+      };
 
       const studentIdFromUrl = getUrlParam('student');
 
@@ -1080,6 +1099,29 @@
                 )}
               </div>
             </div>
+            {/* Try Demo */}
+            <div style={{ marginTop: "24px", textAlign: "center" }}>
+              <div style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "10px", fontWeight: 500 }}>or explore without signing up</div>
+              <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+                <button onClick={() => startDemo("teacher")} disabled={!!demoLoading} style={{
+                  padding: "10px 20px", borderRadius: "10px", border: "1px solid rgba(217,119,6,0.3)",
+                  background: "rgba(217,119,6,0.05)", color: "#b45309", cursor: "pointer",
+                  fontSize: "13px", fontWeight: 600, opacity: demoLoading ? 0.6 : 1,
+                  transition: "all 0.2s",
+                }}>
+                  {demoLoading === "teacher" ? "Setting up..." : "Try Teacher Demo"}
+                </button>
+                <button onClick={() => startDemo("student")} disabled={!!demoLoading} style={{
+                  padding: "10px 20px", borderRadius: "10px", border: "1px solid rgba(251,191,36,0.3)",
+                  background: "rgba(251,191,36,0.05)", color: "#92400e", cursor: "pointer",
+                  fontSize: "13px", fontWeight: 600, opacity: demoLoading ? 0.6 : 1,
+                  transition: "all 0.2s",
+                }}>
+                  {demoLoading === "student" ? "Setting up..." : "Try Student Demo"}
+                </button>
+              </div>
+            </div>
+
             {/* Features Showcase */}
             <div style={{ marginTop: "48px", textAlign: "center" }}>
               <h2 style={{ fontSize: "20px", fontWeight: 600, color: "#1e293b", marginBottom: "6px" }}>
@@ -1722,7 +1764,7 @@
       };
 
       return (
-        <div style={{ ...styles.app, minHeight: "100vh" }}>
+        <div style={{ ...styles.app, minHeight: "100vh", cursor: "pointer" }} onClick={(e) => { if (e.target === e.currentTarget) { stopMetronome(); onBack(); } }}>
           <div className="student-top-bar" style={{ ...styles.topBar }}>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <button onClick={() => { stopMetronome(); onBack(); }} style={{ background: "none", border: "none", color: "#fbbf24", cursor: "pointer", display: "flex", alignItems: "center", minWidth: 44, minHeight: 44, justifyContent: "center" }}><Icons.ArrowLeft /></button>
@@ -2064,7 +2106,7 @@
       const noteNames = chordType.intervals.map(i => getNoteName((root + i) % 12, root));
 
       return (
-        <div style={{ ...styles.app, minHeight: "100vh" }}>
+        <div style={{ ...styles.app, minHeight: "100vh", cursor: "pointer" }} onClick={(e) => { if (e.target === e.currentTarget) onBack(); }}>
           <div className="student-top-bar" style={styles.topBar}>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <button onClick={onBack} style={{ background: "none", border: "none", color: "#fbbf24", cursor: "pointer", display: "flex", alignItems: "center", minWidth: 44, minHeight: 44, justifyContent: "center" }}><Icons.ArrowLeft /></button>
@@ -2192,7 +2234,7 @@
       const noteNames = scaleType.intervals.map(i => getNoteName((rootIndex + i) % 12, rootIndex));
 
       return (
-        <div style={{ ...styles.app, minHeight: "100vh" }}>
+        <div style={{ ...styles.app, minHeight: "100vh", cursor: "pointer" }} onClick={(e) => { if (e.target === e.currentTarget) onBack(); }}>
           <div className="student-top-bar" style={styles.topBar}>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <button onClick={onBack} style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", minWidth: 44, minHeight: 44, justifyContent: "center" }}><Icons.ArrowLeft /></button>
@@ -2607,7 +2649,7 @@
       };
 
       return (
-        <div style={{ ...styles.app, minHeight: "100vh" }}>
+        <div onClick={(e) => { if (e.target === e.currentTarget) onBack(); }} style={{ ...styles.app, minHeight: "100vh", cursor: "pointer" }}>
           <div className="student-top-bar" style={styles.topBar}>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <button onClick={onBack} style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", minWidth: 44, minHeight: 44, justifyContent: "center" }}><Icons.ArrowLeft /></button>
@@ -2942,7 +2984,7 @@
       const correctAnswer = currentQuestion ? (currentQuestion.type === "interval" ? currentQuestion.interval.name : currentQuestion.type === "chord" ? currentQuestion.chord.name : currentQuestion.progression.name) : null;
 
       return (
-        <div style={{ ...styles.app, minHeight: "100vh" }}>
+        <div style={{ ...styles.app, minHeight: "100vh", cursor: "pointer" }} onClick={(e) => { if (e.target === e.currentTarget) onBack(); }}>
           <div className="student-top-bar" style={styles.topBar}>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <button onClick={onBack} style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", minWidth: 44, minHeight: 44, justifyContent: "center" }}><Icons.ArrowLeft /></button>
@@ -3149,7 +3191,7 @@
       };
 
       return (
-        <div style={{ ...styles.app, minHeight: "100vh" }}>
+        <div style={{ ...styles.app, minHeight: "100vh", cursor: "pointer" }} onClick={(e) => { if (e.target === e.currentTarget) onBack(); }}>
           <div className="student-top-bar" style={styles.topBar}>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <button onClick={onBack} style={{ background: "none", border: "none", color: "#fbbf24", cursor: "pointer", display: "flex", alignItems: "center", minWidth: 44, minHeight: 44, justifyContent: "center" }}><Icons.ArrowLeft /></button>
@@ -5697,7 +5739,14 @@
             promises.push(apiFetch('content.php', {}, token));
           }
           const results = await Promise.all(promises);
-          setAssignments(results[0]);
+          // Sort: newest assignment first (highest sort_order or most recent)
+          const sorted = (results[0] || []).slice().sort((a, b) => {
+            // Newest first: higher sort_order = newer
+            if ((b.sortOrder || 0) !== (a.sortOrder || 0)) return (b.sortOrder || 0) - (a.sortOrder || 0);
+            // Fallback: most recently created first
+            return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+          });
+          setAssignments(sorted);
           setProgress(results[1]);
           if (results[2]) setContentLibrary(results[2]);
           // Load toolbox access settings
@@ -5724,6 +5773,7 @@
       if (activeTool === "backingtracks") return <BackingTracks onBack={() => setActiveTool(null)} token={token} teacherName={teacherName} />;
 
       const studentName = student?.name || "Student";
+      const isDemoStudent = student?.is_demo || false;
 
       // Full lesson viewer for student
       if (viewingStudentLesson) {
@@ -5804,6 +5854,12 @@
             </div>
           </div>
 
+          {isDemoStudent && <div style={{
+            background: "linear-gradient(90deg, #f59e0b, #d97706)",
+            color: "#fff", textAlign: "center", padding: "6px 16px",
+            fontSize: "12px", fontWeight: 600, letterSpacing: "0.5px",
+          }}>DEMO MODE — explore freely, nothing is saved</div>}
+
           <div className="student-main-content" style={{ minHeight: "calc(100vh - 56px)" }}>
             {activeTab === "practice" ? (
               <div className="student-container" style={styles.container}>
@@ -5876,6 +5932,20 @@
                   );
                 })() : (
                 <>
+
+                {/* New assignment announcement */}
+                {latestAssignment && !viewingPast && completedSteps === 0 && totalSteps > 0 && (
+                  <div className="student-card fade-in" style={{
+                    ...styles.card, marginBottom: "16px", padding: "20px",
+                    background: "linear-gradient(135deg, rgba(217,119,6,0.08), rgba(251,191,36,0.04))",
+                    border: "2px solid rgba(217,119,6,0.2)", textAlign: "center",
+                  }}>
+                    <div style={{ fontSize: "28px", marginBottom: "8px" }}>&#127926;</div>
+                    <div style={{ fontSize: "18px", fontWeight: 700, color: "#92400e", marginBottom: "4px" }}>New Practice Assigned!</div>
+                    <div style={{ fontSize: "14px", color: "#b45309" }}>{latestAssignment.weekLabel}</div>
+                    <div style={{ fontSize: "13px", color: "#64748b", marginTop: "6px" }}>{totalSteps} steps from {teacherName} — let's get started</div>
+                  </div>
+                )}
 
                 <div className="student-card" style={{ ...styles.card, background: "linear-gradient(135deg, rgba(0,0,0,0.02), rgba(217,119,6,0.04))", border: "1px solid rgba(0,0,0,0.04)" }}>
                   <h1 className="student-page-title" style={{ ...styles.pageTitle, fontSize: "24px" }}>
@@ -7390,6 +7460,20 @@
     // ============================================================
 
 
+    // Demo Mode Banner
+    function DemoBanner() {
+      return (
+        <div style={{
+          background: "linear-gradient(90deg, #f59e0b, #d97706)",
+          color: "#fff", textAlign: "center", padding: "8px 16px",
+          fontSize: "12px", fontWeight: 600, letterSpacing: "0.5px",
+          position: "fixed", top: 0, left: 0, right: 0, zIndex: 10000,
+        }}>
+          DEMO MODE — explore freely, nothing is saved
+        </div>
+      );
+    }
+
     // Error Boundary for debugging
     class ErrorBoundary extends React.Component {
       constructor(props) { super(props); this.state = { hasError: false, error: null }; }
@@ -7411,6 +7495,7 @@
       const [token, setToken] = useState(null);
       const [teacher, setTeacher] = useState(null);
       const [studentAuth, setStudentAuth] = useState(null); // { token, student } when logged in as student
+      const [isDemo, setIsDemo] = useState(false);
 
       // Data state
       const [students, setStudents] = useState([]);
@@ -7533,10 +7618,12 @@
         setToken(newToken);
         setTeacher(teacherData);
         setStudentAuth(null);
+        setIsDemo(!!teacherData.is_demo);
       };
 
       const handleStudentAuth = (studentToken, studentData) => {
         setStudentAuth({ token: studentToken, student: studentData });
+        setIsDemo(!!studentData.is_demo);
         // Clear URL param
         if (window.history.replaceState) {
           window.history.replaceState({}, '', window.location.pathname);
@@ -7544,6 +7631,11 @@
       };
 
       const handleLogout = () => {
+        // Clean up demo data on logout
+        if (isDemo) {
+          const cleanupToken = token || (studentAuth && studentAuth.token);
+          apiFetch("demo.php?action=cleanup", { method: "POST" }, cleanupToken).catch(() => {});
+        }
         setToken(null);
         setTeacher(null);
         setStudentAuth(null);
@@ -7554,6 +7646,7 @@
         setMode("teacher");
         setTeacherPage("students");
         setSelectedStudentId(null);
+        setIsDemo(false);
       };
 
       // Student-authed view (logged in via PIN)
@@ -7574,6 +7667,9 @@
       if (!token) {
         return <LoginScreen onAuth={handleAuth} onStudentAuth={handleStudentAuth} />;
       }
+
+      // Demo banner padding offset
+      const demoPad = isDemo ? { paddingTop: "36px" } : {};
 
       // Show loading while initial data loads
       if (loading) {
@@ -7621,7 +7717,8 @@
 
       return (
         <div style={styles.app}>
-          <div style={styles.topBar} className="teacher-top-bar">
+          {isDemo && <DemoBanner />}
+          <div style={{ ...styles.topBar, ...(isDemo ? { top: "32px" } : {}) }} className="teacher-top-bar">
             <WoodshedLogo onClick={() => setTeacherPage("dashboard")} />
             <div style={{ display: "flex", alignItems: "center" }}>
               <nav style={styles.nav} className="teacher-nav">
