@@ -1101,11 +1101,11 @@
     ];
 
     // Clave patterns: 1 = hit, 0 = rest. Each pattern is mapped to 16 subdivisions (16th notes in 4/4)
-    const CLAVE_PATTERNS = {
+    let CLAVE_PATTERNS = {
       "Son Clave 3-2":   [1,0,0,1,0,0,1,0,0,0,1,0,1,0,0,0],
       "Son Clave 2-3":   [0,0,1,0,1,0,0,0,1,0,0,1,0,0,1,0],
       "Rumba Clave 3-2": [1,0,0,1,0,0,0,1,0,0,1,0,1,0,0,0],
-      "Rumba Clave 2-3": [0,0,1,0,1,0,0,0,1,0,0,0,1,0,0,1],
+      "Rumba Clave 2-3": [0,0,1,0,1,0,0,0,1,0,0,1,0,0,0,1],
       "Bossa Nova":      [1,0,0,1,0,0,1,0,0,0,1,0,0,1,0,0],
       "Cascara":         [1,0,1,0,0,1,0,1,0,1,0,1,0,0,1,0],
     };
@@ -1126,6 +1126,7 @@
       const [currentBeat, setCurrentBeat] = useState(-1);
       const [currentSub, setCurrentSub] = useState(-1);
       const [tapTimes, setTapTimes] = useState([]);
+      const [customPattern, setCustomPattern] = useState(null);
 
       const audioCtxRef = useRef(null);
       const intervalRef = useRef(null);
@@ -1249,6 +1250,7 @@
         setBpm(preset.bpm);
         setTimeSig(preset.timeSig);
         setClavePattern(preset.clave);
+        setCustomPattern(null);
       };
 
       return (
@@ -1278,20 +1280,46 @@
                 ))}
               </div>
 
-              {/* Clave visualiser */}
+              {/* Clave visualiser — tap blocks to toggle hits */}
               {clavePattern && CLAVE_PATTERNS[clavePattern] && (
                 <div style={{ marginBottom: "20px" }}>
-                  <div style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", color: "#64748b", marginBottom: "8px" }}>{clavePattern}</div>
+                  <div style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", color: "#64748b", marginBottom: "8px" }}>
+                    {clavePattern}{customPattern ? " (edited)" : ""}
+                  </div>
                   <div style={{ display: "flex", justifyContent: "center", gap: "4px" }}>
                     {CLAVE_PATTERNS[clavePattern].map((hit, i) => (
-                      <div key={i} style={{
-                        width: "16px", height: "16px", borderRadius: "3px",
-                        background: hit ? (currentSub === i ? "#dc2626" : "rgba(200,104,64,0.4)") : (currentSub === i ? "rgba(0,0,0,0.06)" : "rgba(0,0,0,0.02)"),
-                        border: i % 4 === 0 ? "1px solid rgba(0,0,0,0.08)" : "1px solid transparent",
+                      <div key={i} onClick={() => {
+                        const arr = [...CLAVE_PATTERNS[clavePattern]];
+                        arr[i] = arr[i] ? 0 : 1;
+                        CLAVE_PATTERNS[clavePattern] = arr;
+                        setCustomPattern(arr.join(','));
+                      }} style={{
+                        width: "24px", height: "24px", borderRadius: "4px", cursor: "pointer",
+                        background: hit ? (currentSub === i ? "#dc2626" : "rgba(200,104,64,0.6)") : (currentSub === i ? "rgba(0,0,0,0.08)" : "rgba(0,0,0,0.03)"),
+                        border: i % 4 === 0 ? "1.5px solid rgba(0,0,0,0.12)" : "1.5px solid rgba(0,0,0,0.04)",
                         transition: "background 0.05s",
-                      }} />
+                      }} title={`Beat ${Math.floor(i/4)+1}, 16th ${(i%4)+1} — tap to ${hit ? "remove" : "add"}`} />
                     ))}
                   </div>
+                  {customPattern && (
+                    <button onClick={() => {
+                      const original = {
+                        "Son Clave 3-2":   [1,0,0,1,0,0,1,0,0,0,1,0,1,0,0,0],
+                        "Son Clave 2-3":   [0,0,1,0,1,0,0,0,1,0,0,1,0,0,1,0],
+                        "Rumba Clave 3-2": [1,0,0,1,0,0,0,1,0,0,1,0,1,0,0,0],
+                        "Rumba Clave 2-3": [0,0,1,0,1,0,0,0,1,0,0,1,0,0,0,1],
+                        "Bossa Nova":      [1,0,0,1,0,0,1,0,0,0,1,0,0,1,0,0],
+                        "Cascara":         [1,0,1,0,0,1,0,1,0,1,0,1,0,0,1,0],
+                      };
+                      if (original[clavePattern]) {
+                        CLAVE_PATTERNS[clavePattern] = [...original[clavePattern]];
+                        setCustomPattern(null);
+                      }
+                    }} style={{
+                      background: "none", border: "none", color: "#94a3b8", fontSize: "11px",
+                      cursor: "pointer", marginTop: "6px", textDecoration: "underline",
+                    }}>Reset to default</button>
+                  )}
                 </div>
               )}
 
@@ -1339,7 +1367,7 @@
             <div className="student-card" style={styles.card}>
               <label style={styles.label}>Clave / Pattern Overlay</label>
               <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                <button onClick={() => setClavePattern(null)} style={{
+                <button onClick={() => { setClavePattern(null); setCustomPattern(null); }} style={{
                   ...styles.btnSmall, padding: "8px 14px", minHeight: 44, fontSize: "13px",
                   background: !clavePattern ? "rgba(212,152,58,0.15)" : "rgba(0,0,0,0.02)",
                   color: !clavePattern ? "#b45309" : "#94a3b8",
@@ -1347,7 +1375,7 @@
                   borderRadius: "10px", cursor: "pointer",
                 }}>None</button>
                 {Object.keys(CLAVE_PATTERNS).map(name => (
-                  <button key={name} onClick={() => setClavePattern(name)} style={{
+                  <button key={name} onClick={() => { setClavePattern(name); setCustomPattern(null); }} style={{
                     ...styles.btnSmall, padding: "8px 14px", minHeight: 44, fontSize: "13px",
                     background: clavePattern === name ? "rgba(200,104,64,0.15)" : "rgba(0,0,0,0.02)",
                     color: clavePattern === name ? "#9a3412" : "#94a3b8",
