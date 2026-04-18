@@ -1420,7 +1420,7 @@
       'B': 'Cb', 'Cb': 'B',
     };
 
-    function toggleEnharmonic(rootIndex, noteIndex) {
+    function toggleEnharmonic(rootIndex, noteIndex, token) {
       const map = ENHARMONIC_MAP[rootIndex] || [...NOTE_NAMES];
       const current = map[noteIndex % 12];
       const alt = ENHARMONIC_PAIRS[current];
@@ -1428,6 +1428,13 @@
         const newMap = [...map];
         newMap[noteIndex % 12] = alt;
         ENHARMONIC_MAP[rootIndex] = newMap;
+        // Auto-save for teachers/admin
+        if (token) {
+          apiFetch('toolbox.php', {
+            method: 'POST',
+            body: JSON.stringify({ enharmonic_map: ENHARMONIC_MAP })
+          }, token).catch(() => {});
+        }
       }
     }
 
@@ -1535,10 +1542,23 @@
       );
     }
 
-    function ChordReference({ onBack, allowedChords }) {
+    function ChordReference({ onBack, allowedChords, token, canEdit }) {
       const [rootIndex, setRootIndex] = useState(0);
       const [chordTypeIndex, setChordTypeIndex] = useState(0);
       const [, forceChordUpdate] = useState(0);
+
+      // Load saved enharmonic map on mount
+      useEffect(() => {
+        (async () => {
+          try {
+            const data = await apiFetch('toolbox.php', {}, token);
+            if (data.enharmonic_map) {
+              Object.keys(data.enharmonic_map).forEach(k => { ENHARMONIC_MAP[k] = data.enharmonic_map[k]; });
+              forceChordUpdate(n => n + 1);
+            }
+          } catch (e) { /* use defaults */ }
+        })();
+      }, []);
 
       const filteredChords = allowedChords ? CHORD_TYPES.filter(c => allowedChords.includes(c.name)) : CHORD_TYPES;
       const root = rootIndex;
@@ -1598,7 +1618,7 @@
                     {i > 0 && <span style={{ color: "#cbd5e1" }}>-</span>}
                     <button onClick={() => {
                       const noteIdx = (root + chordType.intervals[i]) % 12;
-                      toggleEnharmonic(root, noteIdx);
+                      toggleEnharmonic(root, noteIdx, canEdit ? token : null);
                       forceChordUpdate(n => n + 1);
                     }} style={{
                       background: "none", border: "1px dashed transparent", borderRadius: "6px",
@@ -1652,10 +1672,23 @@
       { name: "Bebop Dominant", intervals: [0,2,4,5,7,9,10,11], labels: ["1","2","3","4","5","6","b7","7"] },
     ];
 
-    function ScaleReference({ onBack, allowedScales }) {
+    function ScaleReference({ onBack, allowedScales, token, canEdit }) {
       const [rootIndex, setRootIndex] = useState(0);
       const [scaleTypeIndex, setScaleTypeIndex] = useState(0);
       const [, forceUpdate] = useState(0);
+
+      // Load saved enharmonic map on mount
+      useEffect(() => {
+        (async () => {
+          try {
+            const data = await apiFetch('toolbox.php', {}, token);
+            if (data.enharmonic_map) {
+              Object.keys(data.enharmonic_map).forEach(k => { ENHARMONIC_MAP[k] = data.enharmonic_map[k]; });
+              forceUpdate(n => n + 1);
+            }
+          } catch (e) { /* use defaults */ }
+        })();
+      }, []);
 
       const filteredScales = allowedScales ? SCALE_TYPES.filter(s => allowedScales.includes(s.name)) : SCALE_TYPES;
       const scaleType = filteredScales[scaleTypeIndex] || filteredScales[0] || SCALE_TYPES[0];
@@ -1712,7 +1745,7 @@
                     {i > 0 && <span style={{ color: "#cbd5e1" }}>-</span>}
                     <button onClick={() => {
                       const noteIdx = (rootIndex + scaleType.intervals[i]) % 12;
-                      toggleEnharmonic(rootIndex, noteIdx);
+                      toggleEnharmonic(rootIndex, noteIdx, canEdit ? token : null);
                       forceUpdate(n => n + 1);
                     }} style={{
                       background: "none", border: "1px dashed transparent", borderRadius: "6px",
@@ -4259,8 +4292,8 @@
 
       // Full-screen tools
       if (activeTool === "metronome") return <Metronome onBack={() => setActiveTool(null)} />;
-      if (activeTool === "chords") return <ChordReference onBack={() => setActiveTool(null)} allowedChords={allowedChords} />;
-      if (activeTool === "scales") return <ScaleReference onBack={() => setActiveTool(null)} allowedScales={allowedScales} />;
+      if (activeTool === "chords") return <ChordReference onBack={() => setActiveTool(null)} allowedChords={allowedChords} token={token} canEdit={!isStudentAuth} />;
+      if (activeTool === "scales") return <ScaleReference onBack={() => setActiveTool(null)} allowedScales={allowedScales} token={token} canEdit={!isStudentAuth} />;
       if (activeTool === "keyboard") return <PlayableKeyboard onBack={() => setActiveTool(null)} />;
       if (activeTool === "eartraining") return <EarTraining onBack={() => setActiveTool(null)} />;
       if (activeTool === "backingtracks") return <BackingTracks onBack={() => setActiveTool(null)} token={token} />;
