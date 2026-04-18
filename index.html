@@ -2590,10 +2590,13 @@
               placeholder="e.g. ii-V-I rootless voicings in all keys, start with left hand shells&#10;or: Autumn Leaves - melody with guide tones, medium swing&#10;or: Blues scale workout for beginners" />
           </div>
           {!result && (
-            <button style={{ ...aiButtonActiveStyle, width: "100%", justifyContent: "center", padding: "12px", opacity: loading ? 0.7 : 1 }}
-              onClick={handleGenerate} disabled={loading}>
-              <AIIcons.Sparkle /> {loading ? "Generating..." : "Generate Content"}
-            </button>
+            <div style={{ display: "flex", gap: "12px" }}>
+              <button style={{ ...styles.btnGhost, flex: 1 }} onClick={onClose}>Cancel</button>
+              <button style={{ ...aiButtonActiveStyle, flex: 2, justifyContent: "center", padding: "12px", opacity: loading ? 0.7 : 1 }}
+                onClick={handleGenerate} disabled={loading}>
+                <AIIcons.Sparkle /> {loading ? "Generating..." : "Generate Content"}
+              </button>
+            </div>
           )}
           {error && <ErrorBanner message={error} onDismiss={() => setError("")} />}
           {result && (
@@ -2605,6 +2608,7 @@
                 <p style={{ fontSize: "13px", color: "#64748b", marginTop: "10px", lineHeight: 1.5 }}>{result.description}</p>
               </div>
               <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+                <button style={styles.btnGhost} onClick={onClose}>Cancel</button>
                 <button style={styles.btnGhost} onClick={() => { setResult(null); }}>Regenerate</button>
                 <button style={styles.btnPrimary} onClick={handleAccept}>Add to Library</button>
               </div>
@@ -2685,10 +2689,13 @@
           )}
 
           {results.length === 0 && (
-            <button style={{ ...aiButtonActiveStyle, width: "100%", justifyContent: "center", padding: "12px", opacity: loading ? 0.7 : 1 }}
-              onClick={mode === "single" ? handleSingleImport : handleBulkImport} disabled={loading}>
-              <AIIcons.Sparkle /> {loading ? `Importing${mode === "bulk" ? ` (${bulkUrls.split('\n').filter(u => u.trim()).length} videos)` : ""}...` : "Import & Describe"}
-            </button>
+            <div style={{ display: "flex", gap: "12px" }}>
+              <button style={{ ...styles.btnGhost, flex: 1 }} onClick={onClose}>Cancel</button>
+              <button style={{ ...aiButtonActiveStyle, flex: 2, justifyContent: "center", padding: "12px", opacity: loading ? 0.7 : 1 }}
+                onClick={mode === "single" ? handleSingleImport : handleBulkImport} disabled={loading}>
+                <AIIcons.Sparkle /> {loading ? `Importing${mode === "bulk" ? ` (${bulkUrls.split('\n').filter(u => u.trim()).length} videos)` : ""}...` : "Import & Describe"}
+              </button>
+            </div>
           )}
 
           {error && <ErrorBanner message={error} onDismiss={() => setError("")} />}
@@ -2718,6 +2725,7 @@
                 </div>
               ))}
               <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+                <button style={styles.btnGhost} onClick={onClose}>Cancel</button>
                 <button style={styles.btnGhost} onClick={() => setResults([])}>Start Over</button>
                 <button style={styles.btnPrimary} onClick={handleAddSelected}>
                   Add {results.filter(r => r.selected && !r.error).length} to Library
@@ -2798,10 +2806,13 @@
           </div>
 
           {items.length === 0 && (
-            <button style={{ ...aiButtonActiveStyle, width: "100%", justifyContent: "center", padding: "12px", opacity: loading ? 0.7 : 1 }}
-              onClick={handleGenerate} disabled={loading}>
-              <AIIcons.Sparkle /> {loading ? "Generating batch..." : "Generate Content Set"}
-            </button>
+            <div style={{ display: "flex", gap: "12px" }}>
+              <button style={{ ...styles.btnGhost, flex: 1 }} onClick={onClose}>Cancel</button>
+              <button style={{ ...aiButtonActiveStyle, flex: 2, justifyContent: "center", padding: "12px", opacity: loading ? 0.7 : 1 }}
+                onClick={handleGenerate} disabled={loading}>
+                <AIIcons.Sparkle /> {loading ? "Generating batch..." : "Generate Content Set"}
+              </button>
+            </div>
           )}
 
           {error && <ErrorBanner message={error} onDismiss={() => setError("")} />}
@@ -2828,6 +2839,7 @@
                 </div>
               ))}
               <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "12px" }}>
+                <button style={styles.btnGhost} onClick={onClose}>Cancel</button>
                 <button style={styles.btnGhost} onClick={() => setItems([])}>Regenerate</button>
                 <button style={styles.btnPrimary} onClick={handleAddSelected}>
                   Add {items.filter(it => it.selected).length} to Library
@@ -2918,10 +2930,13 @@
           </div>
 
           {!path && (
-            <button style={{ ...styles.btnSuccess, width: "100%", display: "flex", justifyContent: "center", gap: "6px", padding: "12px", opacity: loading ? 0.7 : 1 }}
-              onClick={handleGenerate} disabled={loading}>
-              <AIIcons.Zap /> {loading ? "Building practice path..." : "Build Practice Path"}
-            </button>
+            <div style={{ display: "flex", gap: "12px" }}>
+              <button style={{ ...styles.btnGhost, flex: 1 }} onClick={onClose}>Cancel</button>
+              <button style={{ ...styles.btnSuccess, flex: 2, display: "flex", justifyContent: "center", gap: "6px", padding: "12px", opacity: loading ? 0.7 : 1 }}
+                onClick={handleGenerate} disabled={loading}>
+                <AIIcons.Zap /> {loading ? "Building practice path..." : "Build Practice Path"}
+              </button>
+            </div>
           )}
 
           {error && <ErrorBanner message={error} onDismiss={() => setError("")} />}
@@ -2948,6 +2963,7 @@
                 </div>
               ))}
               <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "16px" }}>
+                <button style={styles.btnGhost} onClick={onClose}>Cancel</button>
                 <button style={styles.btnGhost} onClick={() => setPath(null)}>Regenerate</button>
                 <button style={{ ...styles.btnPrimary, opacity: accepting ? 0.7 : 1 }} onClick={handleAccept} disabled={accepting}>{accepting ? "Creating assignment..." : "Create Assignment"}</button>
               </div>
