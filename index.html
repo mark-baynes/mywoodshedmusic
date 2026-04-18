@@ -5159,6 +5159,7 @@
       const [showYouTubeImport, setShowYouTubeImport] = useState(false);
       const [showBulkGenerate, setShowBulkGenerate] = useState(false);
       const [filter, setFilter] = useState("All");
+      const [searchQuery, setSearchQuery] = useState("");
       const [error, setError] = useState("");
       const [editingId, setEditingId] = useState(null);
       const [editForm, setEditForm] = useState({});
@@ -5166,7 +5167,17 @@
       const [refining, setRefining] = useState(false);
       const [pickerContentId, setPickerContentId] = useState(null);
 
-      const filtered = filter === "All" ? contentLibrary : contentLibrary.filter(c => c.track === filter);
+      const filtered = contentLibrary.filter(c => {
+        if (filter !== "All" && c.track !== filter) return false;
+        if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase();
+          return (c.title || "").toLowerCase().includes(q) ||
+                 (c.description || "").toLowerCase().includes(q) ||
+                 (c.type || "").toLowerCase().includes(q) ||
+                 (c.track || "").toLowerCase().includes(q);
+        }
+        return true;
+      });
 
       const handleAddContent = async (data) => {
         try {
@@ -5229,6 +5240,22 @@
 
           <ErrorBanner message={error} onDismiss={() => setError("")} />
 
+          {/* Search bar */}
+          <div style={{ marginBottom: "16px" }}>
+            <div style={{ position: "relative" }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)" }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input style={{ ...styles.input, paddingLeft: "36px", fontSize: "14px" }}
+                value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search library..." />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery("")} style={{
+                  position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)",
+                  background: "none", border: "none", cursor: "pointer", color: "#94a3b8", fontSize: "16px", padding: "4px",
+                }}>&times;</button>
+              )}
+            </div>
+          </div>
+
           <div style={{ display: "flex", gap: "8px", marginBottom: "24px", flexWrap: "wrap" }}>
             {["All", ...Object.keys(TAG_STYLES)].map(t => (
               <button key={t} onClick={() => setFilter(t)} style={{
@@ -5241,8 +5268,8 @@
 
           {filtered.length === 0 ? (
             <div style={styles.emptyState}>
-              <div style={styles.emptyTitle}>Your library is empty</div>
-              <p>Hit "Quick Lesson" to add your first piece of content -- a link, an exercise, a voicing chart.</p>
+              <div style={styles.emptyTitle}>{searchQuery ? "No results" : "Your library is empty"}</div>
+              <p>{searchQuery ? `Nothing matched "${searchQuery}". Try a different search or clear the filter.` : 'Hit "Quick Lesson" to add your first piece of content -- a link, an exercise, a voicing chart.'}</p>
             </div>
           ) : (
             <div className="content-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "16px" }}>
@@ -5649,6 +5676,7 @@
       const [viewingPast, setViewingPast] = useState(false);
       const [pastAssignmentId, setPastAssignmentId] = useState(null);
       const [activeTab, setActiveTab] = useState("practice");
+      const [studentSearch, setStudentSearch] = useState("");
       const [activeTool, setActiveTool] = useState(null); // "metronome" | "chords" | null
       const [allowedScales, setAllowedScales] = useState(null);
       const [allowedChords, setAllowedChords] = useState(null);
@@ -5780,6 +5808,74 @@
             {activeTab === "practice" ? (
               <div className="student-container" style={styles.container}>
                 <ErrorBanner message={error} onDismiss={() => setError("")} />
+
+                {/* Student search */}
+                <div style={{ marginBottom: "16px" }}>
+                  <div style={{ position: "relative" }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)" }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input style={{ ...styles.input, paddingLeft: "36px", fontSize: "14px" }}
+                      value={studentSearch} onChange={e => setStudentSearch(e.target.value)}
+                      placeholder="Search your assignments and content..." />
+                    {studentSearch && (
+                      <button onClick={() => setStudentSearch("")} style={{
+                        position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)",
+                        background: "none", border: "none", cursor: "pointer", color: "#94a3b8", fontSize: "16px", padding: "4px",
+                      }}>&times;</button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Search results view */}
+                {studentSearch.trim() ? (() => {
+                  const q = studentSearch.toLowerCase();
+                  const results = [];
+                  assignments.forEach(a => {
+                    (a.steps || []).forEach(step => {
+                      const c = contentLibrary.find(x => x.id === step.contentId) || {};
+                      const title = c.title || step.content_title || "";
+                      const desc = c.description || step.content_description || "";
+                      const type = c.type || step.content_type || "";
+                      const notes = step.notes || "";
+                      if (title.toLowerCase().includes(q) || desc.toLowerCase().includes(q) ||
+                          type.toLowerCase().includes(q) || notes.toLowerCase().includes(q) ||
+                          (a.weekLabel || "").toLowerCase().includes(q)) {
+                        results.push({ assignment: a, step, content: { ...c, title, description: desc, type, track: c.track || step.content_track } });
+                      }
+                    });
+                  });
+                  return results.length > 0 ? (
+                    <div className="student-card" style={styles.card}>
+                      <div style={styles.cardTitle}>{results.length} result{results.length !== 1 ? "s" : ""}</div>
+                      {results.map((r, i) => (
+                        <div key={i} style={{ ...styles.stepItem(false), padding: "12px 0", cursor: "pointer" }}
+                          onClick={() => {
+                            const aIdx = assignments.findIndex(a => a.id === r.assignment.id);
+                            if (aIdx === 0) { setViewingPast(false); setPastAssignmentId(null); }
+                            else { setViewingPast(true); setPastAssignmentId(r.assignment.id); }
+                            setStudentSearch("");
+                          }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                              <span style={styles.contentTypeIcon}>{contentTypeLabel(r.content.type)}</span>
+                              <span className="student-step-title" style={{ fontSize: "14px", fontWeight: 500, color: "#1e293b" }}>{r.content.title}</span>
+                            </div>
+                            <div style={{ fontSize: "12px", color: "#94a3b8" }}>
+                              from <strong>{r.assignment.weekLabel}</strong>
+                              {r.content.track && <span style={{ ...styles.tag(r.content.track), marginLeft: "8px", fontSize: "10px" }}>{r.content.track}</span>}
+                            </div>
+                            {r.content.description && <div style={{ fontSize: "12px", color: "#64748b", marginTop: "4px", lineHeight: 1.4 }}>{r.content.description.substring(0, 120)}{r.content.description.length > 120 ? "..." : ""}</div>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={styles.emptyState}>
+                      <div style={styles.emptyTitle}>No results</div>
+                      <p>Nothing matched "{studentSearch}". Try a different search.</p>
+                    </div>
+                  );
+                })() : (
+                <>
 
                 <div className="student-card" style={{ ...styles.card, background: "linear-gradient(135deg, rgba(0,0,0,0.02), rgba(217,119,6,0.04))", border: "1px solid rgba(0,0,0,0.04)" }}>
                   <h1 className="student-page-title" style={{ ...styles.pageTitle, fontSize: "24px" }}>
@@ -5922,6 +6018,8 @@
                     <p>{teacherName} hasn't set up this week's practice yet. Check back soon!</p>
                   </div>
                 )}
+              </>
+              )}
               </div>
             ) : activeTab === "toolbox" ? (
               <Toolbox
