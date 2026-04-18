@@ -3091,6 +3091,7 @@
                       <input value={editForm.title || ""} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} placeholder="Title" style={{ ...styles.input, fontSize: "15px", fontWeight: 500 }} />
                       <textarea value={editForm.description || ""} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} placeholder="Description" rows={4} style={{ ...styles.input, fontSize: "13px", lineHeight: 1.5, resize: "vertical" }} />
                       <input value={editForm.url || ""} onChange={e => setEditForm(f => ({ ...f, url: e.target.value }))} placeholder="URL (optional)" style={{ ...styles.input, fontSize: "13px" }} />
+                      {editForm.pdf_url && <div style={{ fontSize: "12px", color: "#10b981", display: "flex", alignItems: "center", gap: "4px" }}><Icons.Check /> PDF attached</div>}
                       <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
                         <button onClick={() => setEditingId(null)} style={styles.btnGhost}>Cancel</button>
                         <button onClick={() => handleUpdateContent(content.id, editForm)} style={styles.btnPrimary}>
@@ -3107,7 +3108,7 @@
                       <span style={styles.tag(content.track)}>{content.track}</span>
                     </div>
                     <div style={{ display: "flex", gap: "4px" }}>
-                      <button style={{ ...styles.btnGhost, padding: "6px" }} onClick={() => { setEditingId(content.id); setEditForm({ title: content.title, description: content.description || "", type: content.type, track: content.track, url: content.url || "" }); }} title="Edit"><Icons.Edit /></button>
+                      <button style={{ ...styles.btnGhost, padding: "6px" }} onClick={() => { setEditingId(content.id); setEditForm({ title: content.title, description: content.description || "", type: content.type, track: content.track, url: content.url || "", pdf_url: content.pdf_url || "" }); }} title="Edit"><Icons.Edit /></button>
                       <button style={styles.btnDanger} onClick={() => handleRemoveContent(content.id)}><Icons.Trash /></button>
                     </div>
                   </div>
@@ -3120,7 +3121,38 @@
                       </a>}
                     </div>
                   )}
+                  {content.pdf_url && (
+                    <div style={{ marginTop: "10px" }}>
+                      <a href={API_BASE.replace("api/", "") + content.pdf_url} target="_blank" rel="noopener noreferrer"
+                        style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "12px", color: "#d97706", textDecoration: "none", background: "rgba(217,119,6,0.08)", border: "1px solid rgba(217,119,6,0.15)", borderRadius: "6px", padding: "5px 10px" }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        View PDF
+                      </a>
+                    </div>
+                  )}
                   <div style={{ display: "flex", gap: "8px", marginTop: "12px", flexWrap: "wrap", alignItems: "center" }}>
+                    <label style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "12px", color: "#d97706", background: "rgba(217,119,6,0.08)", border: "1px solid rgba(217,119,6,0.15)", borderRadius: "6px", padding: "5px 10px", cursor: "pointer" }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                      {content.pdf_url ? "Replace PDF" : "Upload PDF"}
+                      <input type="file" accept="application/pdf" style={{ display: "none" }} onChange={async (e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        const formData = new FormData();
+                        formData.append("pdf", file);
+                        formData.append("content_id", content.id);
+                        try {
+                          const res = await fetch(API_BASE + "upload_pdf.php", {
+                            method: "POST",
+                            headers: { "Authorization": "Bearer " + token },
+                            body: formData
+                          });
+                          const data = await res.json();
+                          if (!res.ok) throw new Error(data.error || "Upload failed");
+                          await onRefreshContent();
+                        } catch (err) { alert("PDF upload failed: " + err.message); }
+                        e.target.value = "";
+                      }} />
+                    </label>
                     <GenerateLessonButton content={content} token={token} onLessonGenerated={(id, html) => { onViewLesson(id, html); onRefreshContent(); }} />
                     {content.lesson_content && (
                       <button onClick={() => onViewLesson(content.id, content.lesson_content)} style={{ fontSize: "12px", padding: "4px 10px", background: "rgba(217,119,6,0.1)", color: "#d97706", border: "1px solid rgba(217,119,6,0.2)", borderRadius: "6px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>
@@ -3535,6 +3567,13 @@
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                                 View Full Lesson
                               </button>
+                            )}
+                            {(content?.pdf_url) && (
+                              <a href={API_BASE.replace("api/", "") + content.pdf_url} target="_blank" rel="noopener noreferrer"
+                                style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "12px", color: "#d97706", background: "rgba(217,119,6,0.08)", border: "1px solid rgba(217,119,6,0.15)", borderRadius: "6px", padding: "5px 10px", textDecoration: "none", marginTop: "6px" }}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                View Sheet Music
+                              </a>
                             )}
                             <div style={{ display: "flex", gap: "6px", marginTop: "6px", alignItems: "center" }}>
                               {content && <span style={styles.tag(content.track)}>{content.track}</span>}
