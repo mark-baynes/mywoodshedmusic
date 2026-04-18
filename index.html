@@ -2239,6 +2239,8 @@
 
       const playChord = (intervals, rootMidi) => {
         intervals.forEach(i => playNote(rootMidi + i, 1.0));
+        // Bass root note 2 octaves below
+        if (progBass) playNote(rootMidi - 24, 1.0);
       };
 
       const newIntervalQuestion = () => {
