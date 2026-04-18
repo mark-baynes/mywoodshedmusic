@@ -1915,10 +1915,65 @@
       }
     }
 
+    // Sustained note playback for MIDI keyboards (note-on / note-off)
+    const activeNotes = {}; // midiNote -> { source, gain }
+
+    function playNoteStart(midiNote, velocity = 100) {
+      const ctx = getAudioCtx();
+      ensurePreload();
+      const now = ctx.currentTime;
+      const vol = (velocity / 127) * 0.8;
+
+      // Stop any existing note on this key
+      if (activeNotes[midiNote]) playNoteStop(midiNote);
+
+      const info = midiToSampleInfo(midiNote);
+      const buffer = sampleBuffers[info.name];
+
+      if (buffer) {
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.detune.value = info.detune;
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(vol, now);
+        source.connect(gain);
+        gain.connect(ctx.destination);
+        source.start(now);
+        activeNotes[midiNote] = { source, gain };
+      } else {
+        // Fallback synth
+        const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(freq, now);
+        gain.gain.setValueAtTime(vol * 0.4, now);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        activeNotes[midiNote] = { source: osc, gain };
+      }
+    }
+
+    function playNoteStop(midiNote) {
+      const note = activeNotes[midiNote];
+      if (!note) return;
+      const ctx = getAudioCtx();
+      const now = ctx.currentTime;
+      try {
+        note.gain.gain.setValueAtTime(note.gain.gain.value, now);
+        note.gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        setTimeout(() => { try { note.source.stop(); } catch(e) {} }, 400);
+      } catch(e) {}
+      delete activeNotes[midiNote];
+    }
+
     function PlayableKeyboard({ onBack }) {
       const [activeKeys, setActiveKeys] = useState(new Set());
       const [octave, setOctave] = useState(4);
       const [samplesLoaded, setSamplesLoaded] = useState(samplesReady);
+      const [midiDevice, setMidiDevice] = useState(null);
+      const [midiSupported, setMidiSupported] = useState(!!navigator.requestMIDIAccess);
       const numOctaves = 2;
 
       // Preload samples for current octave range
@@ -1927,6 +1982,60 @@
         const high = low + (numOctaves + 1) * 12;
         preloadSamples(low, high).then(() => setSamplesLoaded(true));
       }, [octave]);
+
+      // Web MIDI API — detect and connect to USB MIDI keyboards
+      useEffect(() => {
+        if (!navigator.requestMIDIAccess) return;
+        let midiAccess = null;
+
+        const onMIDIMessage = (e) => {
+          const [status, note, velocity] = e.data;
+          const command = status & 0xf0;
+          if (command === 0x90 && velocity > 0) {
+            // Note On
+            playNoteStart(note, velocity);
+            setActiveKeys(prev => new Set([...prev, note]));
+            // Preload nearby samples if needed
+            preloadSamples(note - 12, note + 12);
+          } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
+            // Note Off
+            playNoteStop(note);
+            setActiveKeys(prev => { const n = new Set(prev); n.delete(note); return n; });
+          }
+        };
+
+        const connectInputs = (access) => {
+          let deviceName = null;
+          for (const input of access.inputs.values()) {
+            input.onmidimessage = onMIDIMessage;
+            deviceName = input.name;
+          }
+          setMidiDevice(deviceName);
+        };
+
+        navigator.requestMIDIAccess({ sysex: false }).then((access) => {
+          midiAccess = access;
+          connectInputs(access);
+          // Listen for new devices being plugged in / removed
+          access.onstatechange = () => {
+            connectInputs(access);
+            // Check if any inputs remain
+            let hasInput = false;
+            for (const input of access.inputs.values()) { hasInput = true; break; }
+            if (!hasInput) setMidiDevice(null);
+          };
+          // Preload full range for MIDI keyboards
+          preloadSamples(21, 108);
+        }).catch(() => { setMidiSupported(false); });
+
+        return () => {
+          if (midiAccess) {
+            for (const input of midiAccess.inputs.values()) {
+              input.onmidimessage = null;
+            }
+          }
+        };
+      }, []);
 
       const handleKeyDown = (midiNote) => {
         playNote(midiNote, 1.5);
@@ -2025,6 +2134,11 @@
             <p style={{ textAlign: "center", fontSize: "11px", color: samplesLoaded ? "#5a9a7a" : "#d97706", marginTop: "4px" }}>
               {samplesLoaded ? "♪ Salamander Grand Piano samples loaded" : "Loading piano samples..."}
             </p>
+            {midiSupported && (
+              <p style={{ textAlign: "center", fontSize: "11px", color: midiDevice ? "#5a9a7a" : "#94a3b8", marginTop: "2px" }}>
+                {midiDevice ? ("🎹 MIDI connected: " + midiDevice) : "Plug in a USB MIDI keyboard to play"}
+              </p>
+            )}
           </div>
         </div>
       );
