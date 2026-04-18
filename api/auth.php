@@ -1,8 +1,8 @@
 <?php
 // My Woodshed Music — Authentication API
-// POST /api/auth.php?action=register      — create teacher account
-// POST /api/auth.php?action=login         — teacher login
-// POST /api/auth.php?action=student_login — student login with PIN (supports PIN-only or studentId+PIN)
+// POST /api/auth.php?action=register      — create teacher account (optional invite_code for auto-approve)
+// POST /api/auth.php?action=login         — teacher login (must be approved)
+// POST /api/auth.php?action=student_login — student login with PIN
 
 require_once __DIR__ . '/helpers.php';
 
@@ -15,6 +15,7 @@ switch ($action) {
         $name = trim($body['name'] ?? '');
         $email = trim($body['email'] ?? '');
         $password = $body['password'] ?? '';
+        $inviteCode = trim($body['inviteCode'] ?? '');
 
         if (!$name || !$email || strlen($password) < 6) {
             jsonResponse(['error' => 'Name, email, and password (min 6 chars) required'], 400);
@@ -27,13 +28,36 @@ switch ($action) {
             jsonResponse(['error' => 'Email already registered'], 409);
         }
 
+        // Check invite code if provided
+        $approved = 0;
+        if ($inviteCode) {
+            $codeStmt = $db->prepare('SELECT id, code FROM invite_codes WHERE code = ? AND used_by IS NULL');
+            $codeStmt->execute([strtoupper($inviteCode)]);
+            $codeRow = $codeStmt->fetch();
+            if ($codeRow) {
+                $approved = 1;
+            } else {
+                jsonResponse(['error' => 'Invalid or already-used invite code'], 400);
+            }
+        }
+
         $id = generateId();
         $hash = password_hash($password, PASSWORD_DEFAULT);
-        $stmt = $db->prepare('INSERT INTO teachers (id, name, email, password_hash) VALUES (?, ?, ?, ?)');
-        $stmt->execute([$id, $name, $email, $hash]);
+        $stmt = $db->prepare('INSERT INTO teachers (id, name, email, password_hash, approved) VALUES (?, ?, ?, ?, ?)');
+        $stmt->execute([$id, $name, $email, $hash, $approved]);
 
-        $token = createToken(['teacher_id' => $id, 'role' => 'teacher']);
-        jsonResponse(['token' => $token, 'teacher' => ['id' => $id, 'name' => $name, 'email' => $email]]);
+        // Mark invite code as used
+        if ($inviteCode && $approved) {
+            $db->prepare('UPDATE invite_codes SET used_by = ?, used_at = NOW() WHERE code = ?')->execute([$id, strtoupper($inviteCode)]);
+        }
+
+        if (!$approved) {
+            jsonResponse(['pending' => true, 'message' => 'Account created! Your account is pending approval by the studio owner.']);
+            break;
+        }
+
+        $token = createToken(['teacher_id' => $id, 'role' => 'teacher', 'is_admin' => false]);
+        jsonResponse(['token' => $token, 'teacher' => ['id' => $id, 'name' => $name, 'email' => $email, 'is_admin' => false]]);
         break;
 
     case 'login':
@@ -53,11 +77,19 @@ switch ($action) {
             jsonResponse(['error' => 'Invalid email or password'], 401);
         }
 
-        $token = createToken(['teacher_id' => $teacher['id'], 'role' => 'teacher']);
+        // Check if approved
+        if (!$teacher['approved']) {
+            jsonResponse(['pending' => true, 'message' => 'Your account is pending approval by the studio owner. Please check back soon!']);
+            break;
+        }
+
+        $isAdmin = (bool)($teacher['is_admin'] ?? 0);
+        $token = createToken(['teacher_id' => $teacher['id'], 'role' => 'teacher', 'is_admin' => $isAdmin]);
         jsonResponse(['token' => $token, 'teacher' => [
             'id' => $teacher['id'],
             'name' => $teacher['name'],
-            'email' => $teacher['email']
+            'email' => $teacher['email'],
+            'is_admin' => $isAdmin
         ]]);
         break;
 
@@ -72,11 +104,9 @@ switch ($action) {
         $db = getDB();
 
         if ($studentId) {
-            // Lookup by student ID + PIN (used with ?student=ID shareable links)
             $stmt = $db->prepare('SELECT * FROM students WHERE id = ? AND pin = ?');
             $stmt->execute([$studentId, $pin]);
         } else {
-            // PIN-only lookup (v2 — PIN is unique across all students)
             $stmt = $db->prepare('SELECT * FROM students WHERE pin = ?');
             $stmt->execute([$pin]);
         }
