@@ -60,6 +60,36 @@
       0%, 100% { opacity: 1; }
       50% { opacity: 0.6; }
     }
+
+    /* -- Visual Polish: Animations & Hover Effects -- */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in { animation: fadeIn 0.3s ease-out; }
+
+    .card-hover { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+    .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(51,65,85,0.1); }
+
+    .nav-btn { transition: all 0.2s ease; }
+    .nav-btn:hover { background: rgba(251,191,36,0.12) !important; }
+
+    .btn-primary { transition: filter 0.2s ease, transform 0.2s ease; }
+    .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+    .btn-ghost { transition: background 0.2s ease; }
+    .btn-ghost:hover { background: rgba(0,0,0,0.06) !important; }
+
+    .btn-danger { transition: background 0.2s ease; }
+    .btn-danger:hover { background: rgba(239,68,68,0.15) !important; }
+
+    .toolbox-card-styled { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+    .toolbox-card-styled:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(217,119,6,0.12); }
+
+    .login-bg { background: linear-gradient(135deg, #f8fafc 0%, #fef3c7 50%, #f8fafc 100%); }
+
+    .dash-stat-card { transition: transform 0.2s ease; }
+    .dash-stat-card:hover { transform: translateY(-2px); }
   </style>
 </head>
 <body>
@@ -319,6 +349,8 @@
     };
 
     const CONTENT_TYPES = ["Watch", "Play", "Practice", "Listen", "Review"];
+    const CONTENT_TYPE_EMOJI = { Watch: "👁️", Play: "▶️", Practice: "🎵", Listen: "🎧", Review: "📖" };
+    const contentTypeLabel = (type) => type ? ((CONTENT_TYPE_EMOJI[type] || "") + " " + type) : "";
     const FEEDBACK_OPTIONS = [
       { value: "good", label: "Felt good", emoji: "\u{1F44D}" },
       { value: "more_time", label: "Need more time", emoji: "\u{1F504}" },
@@ -478,9 +510,10 @@
       });
 
       return (
-        <div style={{ ...styles.app, display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+        <div className="login-bg" style={{ ...styles.app, display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
           <div style={{ width: "100%", maxWidth: "420px", padding: "24px" }}>
             <div style={{ textAlign: "center", marginBottom: "40px" }}>
+              <div style={{ fontSize: "48px", marginBottom: "12px" }}>🎹</div>
               <h1 style={{ ...styles.logo, fontSize: "32px", marginBottom: "8px", color: "#1e293b" }}>My <span style={{ color: "#d97706" }}>Woodshed</span> Music</h1>
               <p style={{ fontSize: "14px", color: "#64748b" }}>Your teaching studio, organised</p>
             </div>
@@ -748,7 +781,7 @@
                   {step.notes && <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>{step.notes}</div>}
                   <div style={{ display: "flex", gap: "6px", marginTop: "4px" }}>
                     {content && <span style={styles.tag(content.track)}>{content.track}</span>}
-                    {content && <span style={{ ...styles.contentTypeIcon, fontSize: "10px" }}>{content.type}</span>}
+                    {content && <span style={{ ...styles.contentTypeIcon, fontSize: "10px" }}>{contentTypeLabel(content.type)}</span>}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
@@ -1734,47 +1767,52 @@
           <p style={{ ...styles.pageSubtitle, marginBottom: "24px" }}>Practice tools at your fingertips</p>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-            <button className="toolbox-card" onClick={onOpenMetronome} style={{
+            <button className="toolbox-card toolbox-card-styled" onClick={onOpenMetronome} style={{
               ...styles.card, cursor: "pointer", textAlign: "center", padding: "32px 20px",
               border: "2px solid rgba(0,0,0,0.04)", transition: "all 0.2s",
+              background: "linear-gradient(135deg, rgba(217,119,6,0.06), rgba(245,158,11,0.03))",
             }}>
-              <div style={{ marginBottom: "12px" }}><Icons.Metronome /></div>
+              <div style={{ marginBottom: "12px", transform: "scale(1.6)", color: "#d97706" }}><Icons.Metronome /></div>
               <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "16px", color: "#1e293b", marginBottom: "4px" }}>Groove Machine</div>
               <div style={{ fontSize: "12px", color: "#64748b" }}>Metronome with clave patterns</div>
             </button>
 
-            <button className="toolbox-card" onClick={onOpenChords} style={{
+            <button className="toolbox-card toolbox-card-styled" onClick={onOpenChords} style={{
               ...styles.card, cursor: "pointer", textAlign: "center", padding: "32px 20px",
               border: "2px solid rgba(0,0,0,0.04)", transition: "all 0.2s",
+              background: "linear-gradient(135deg, rgba(59,130,246,0.06), rgba(96,165,250,0.03))",
             }}>
-              <div style={{ marginBottom: "12px" }}><Icons.Piano /></div>
+              <div style={{ marginBottom: "12px", transform: "scale(1.6)", color: "#3b82f6" }}><Icons.Piano /></div>
               <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "16px", color: "#1e293b", marginBottom: "4px" }}>Chord Reference</div>
               <div style={{ fontSize: "12px", color: "#64748b" }}>Chord symbols and voicings</div>
             </button>
 
-            <button className="toolbox-card" onClick={onOpenScales} style={{
+            <button className="toolbox-card toolbox-card-styled" onClick={onOpenScales} style={{
               ...styles.card, cursor: "pointer", textAlign: "center", padding: "32px 20px",
               border: "2px solid rgba(0,0,0,0.04)", transition: "all 0.2s",
+              background: "linear-gradient(135deg, rgba(16,185,129,0.06), rgba(52,211,153,0.03))",
             }}>
-              <div style={{ marginBottom: "12px" }}><Icons.Music /></div>
+              <div style={{ marginBottom: "12px", transform: "scale(1.6)", color: "#10b981" }}><Icons.Music /></div>
               <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "16px", color: "#1e293b", marginBottom: "4px" }}>Scale Reference</div>
               <div style={{ fontSize: "12px", color: "#64748b" }}>Scales, modes and patterns</div>
             </button>
 
-            <button className="toolbox-card" onClick={onOpenKeyboard} style={{
+            <button className="toolbox-card toolbox-card-styled" onClick={onOpenKeyboard} style={{
               ...styles.card, cursor: "pointer", textAlign: "center", padding: "32px 20px",
               border: "2px solid rgba(0,0,0,0.04)", transition: "all 0.2s",
+              background: "linear-gradient(135deg, rgba(139,92,246,0.06), rgba(167,139,250,0.03))",
             }}>
-              <div style={{ marginBottom: "12px" }}><Icons.Piano /></div>
+              <div style={{ marginBottom: "12px", transform: "scale(1.6)", color: "#8b5cf6" }}><Icons.Piano /></div>
               <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "16px", color: "#1e293b", marginBottom: "4px" }}>Piano</div>
               <div style={{ fontSize: "12px", color: "#64748b" }}>Playable keyboard with sound</div>
             </button>
 
-            <button className="toolbox-card" onClick={onOpenEarTraining} style={{
+            <button className="toolbox-card toolbox-card-styled" onClick={onOpenEarTraining} style={{
               ...styles.card, cursor: "pointer", textAlign: "center", padding: "32px 20px",
               border: "2px solid rgba(0,0,0,0.04)", transition: "all 0.2s",
+              background: "linear-gradient(135deg, rgba(236,72,153,0.06), rgba(244,114,182,0.03))",
             }}>
-              <div style={{ marginBottom: "12px" }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg></div>
+              <div style={{ marginBottom: "12px", color: "#ec4899" }}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg></div>
               <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "16px", color: "#1e293b", marginBottom: "4px" }}>Ear Training</div>
               <div style={{ fontSize: "12px", color: "#64748b" }}>Interval and chord recognition</div>
             </button>
@@ -1905,7 +1943,7 @@
               <h1 style={{ ...styles.pageTitle, fontSize: "28px", marginBottom: "8px" }}>{title}</h1>
               <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                 {track && <span style={{ ...styles.tag(track), fontSize: "12px" }}>{track}</span>}
-                {type && <span style={{ ...styles.contentTypeIcon, fontSize: "12px" }}>{type}</span>}
+                {type && <span style={{ ...styles.contentTypeIcon, fontSize: "12px" }}>{contentTypeLabel(type)}</span>}
               </div>
             </div>
             {editing ? (
@@ -2763,7 +2801,7 @@
           {result && (
             <div style={{ marginTop: "16px" }}>
               <div style={styles.card}>
-                <div style={styles.contentTypeIcon}>{result.type}</div>
+                <div style={styles.contentTypeIcon}>{contentTypeLabel(result.type)}</div>
                 <div style={{ fontSize: "15px", fontWeight: 500, color: "#1e293b", marginBottom: "6px" }}>{result.title}</div>
                 <span style={styles.tag(result.track)}>{result.track}</span>
                 <p style={{ fontSize: "13px", color: "#64748b", marginTop: "10px", lineHeight: 1.5 }}>{result.description}</p>
@@ -2874,7 +2912,7 @@
                           {r.selected && <Icons.Check />}
                         </div>
                         <div style={{ flex: 1 }}>
-                          <div style={styles.contentTypeIcon}>{r.content?.type}</div>
+                          <div style={styles.contentTypeIcon}>{contentTypeLabel(r.content?.type)}</div>
                           <div style={{ fontSize: "14px", fontWeight: 500, color: "#1e293b" }}>{r.content?.title}</div>
                         </div>
                         <span style={styles.tag(r.content?.track)}>{r.content?.track}</span>
@@ -3114,7 +3152,7 @@
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
-                      <span style={styles.contentTypeIcon}>{step.type}</span>
+                      <span style={styles.contentTypeIcon}>{contentTypeLabel(step.type)}</span>
                       <span style={styles.tag(step.track)}>{step.track}</span>
                       {step.source === "new" && <span style={{ fontSize: "10px", color: "#d97706", fontWeight: 500 }}>NEW</span>}
                     </div>
@@ -3332,7 +3370,7 @@
                   <>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div style={{ flex: 1 }}>
-                      <div style={styles.contentTypeIcon}>{content.type}</div>
+                      <div style={styles.contentTypeIcon}>{contentTypeLabel(content.type)}</div>
                       <div style={{ fontSize: "15px", fontWeight: 500, color: "#1e293b", marginBottom: "6px" }}>{content.title}</div>
                       <span style={styles.tag(content.track)}>{content.track}</span>
                     </div>
@@ -3518,7 +3556,7 @@
                             {step.notes && <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>{step.notes}</div>}
                             <div style={{ display: "flex", gap: "6px", marginTop: "4px", alignItems: "center" }}>
                               {content && <span style={styles.tag(content.track)}>{content.track}</span>}
-                              {content && <span style={styles.contentTypeIcon}>{content.type}</span>}
+                              {content && <span style={styles.contentTypeIcon}>{contentTypeLabel(content.type)}</span>}
                               {fb && <span style={{ fontSize: "12px", color: "#64748b" }}>{fb.emoji} {fb.label}</span>}
                               {stepProgress?.practiceSeconds > 0 && <span style={{ fontSize: "12px", color: "#94a3b8" }}>({Math.floor(stepProgress.practiceSeconds / 60)}m practised)</span>}
                               {stepProgress?.audioUrl && <audio controls src={API_BASE.replace("/api/", "/") + stepProgress.audioUrl} style={{ height: "28px", maxWidth: "200px" }} />}
@@ -3663,7 +3701,7 @@
               <span className="logo-text" style={styles.logo}>My <span style={styles.logoAccent}>Woodshed</span> Music</span>
             </div>
           </div>
-          <div style={styles.container}><Loading message="Loading your practice..." /></div>
+          <div className="fade-in" style={styles.container}><Loading message="Loading your practice..." /></div>
         </div>
       );
 
@@ -3796,7 +3834,7 @@
                             {completed && <Icons.Check />}
                           </div>
                           <div style={{ flex: 1 }}>
-                            <div style={styles.contentTypeIcon}>{content?.type || "Practice"}</div>
+                            <div style={styles.contentTypeIcon}>{contentTypeLabel(content?.type || "Practice")}</div>
                             <div className="student-step-title" style={{ fontSize: "15px", color: "#1e293b", fontWeight: 500 }}>{content?.title || "Untitled"}</div>
                             {step.notes && <div style={{ fontSize: "13px", color: "#5a4a38", marginTop: "4px", lineHeight: 1.5 }}>{step.notes}</div>}
                             {content?.description && <div style={{ fontSize: "13px", color: "#64748b", marginTop: "4px", lineHeight: 1.5 }}>{content.description}</div>}
@@ -4025,12 +4063,12 @@
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "16px", marginBottom: "28px" }}>
             {[
-              { label: "Students", value: students.length, color: "#1e293b" },
-              { label: "Active", value: activeCount, color: "#10b981" },
-              { label: "Quiet (4-7d)", value: quietCount, color: "#f59e0b" },
-              { label: "Inactive (7d+)", value: inactiveCount, color: "#94a3b8" },
+              { label: "Students", value: students.length, color: "#1e293b", tint: "rgba(30,41,59,0.03)" },
+              { label: "Active", value: activeCount, color: "#10b981", tint: "rgba(16,185,129,0.04)" },
+              { label: "Quiet (4-7d)", value: quietCount, color: "#f59e0b", tint: "rgba(245,158,11,0.04)" },
+              { label: "Inactive (7d+)", value: inactiveCount, color: "#94a3b8", tint: "rgba(148,163,184,0.04)" },
             ].map((stat, i) => (
-              <div key={i} style={{ ...styles.card, textAlign: "center", padding: "16px" }}>
+              <div key={i} className="dash-stat-card" style={{ ...styles.card, textAlign: "center", padding: "16px", borderLeft: `4px solid ${stat.color}`, background: stat.tint }}>
                 <div style={{ fontSize: "28px", fontWeight: 700, color: stat.color, fontFamily: "'JetBrains Mono', monospace" }}>{stat.value}</div>
                 <div style={{ fontSize: "11px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "1px", marginTop: "4px" }}>{stat.label}</div>
               </div>
@@ -4518,19 +4556,19 @@
             <span style={styles.logo}>My <span style={styles.logoAccent}>Woodshed</span> Music</span>
             <div style={{ display: "flex", alignItems: "center" }}>
               <nav style={styles.nav}>
-                <button style={styles.navBtn(teacherPage === "dashboard")} onClick={() => setTeacherPage("dashboard")}>
+                <button className="nav-btn" style={styles.navBtn(teacherPage === "dashboard")} onClick={() => setTeacherPage("dashboard")}>
                   <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg> Dashboard</span>
                 </button>
-                <button style={styles.navBtn(teacherPage === "students")} onClick={() => setTeacherPage("students")}>
+                <button className="nav-btn" style={styles.navBtn(teacherPage === "students")} onClick={() => setTeacherPage("students")}>
                   <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><Icons.User /> Students</span>
                 </button>
-                <button style={styles.navBtn(teacherPage === "library")} onClick={() => setTeacherPage("library")}>
+                <button className="nav-btn" style={styles.navBtn(teacherPage === "library")} onClick={() => setTeacherPage("library")}>
                   <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><Icons.Book /> Library</span>
                 </button>
-                <button style={styles.navBtn(teacherPage === "assignments")} onClick={() => setTeacherPage("assignments")}>
+                <button className="nav-btn" style={styles.navBtn(teacherPage === "assignments")} onClick={() => setTeacherPage("assignments")}>
                   <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><Icons.Clipboard /> Assignments</span>
                 </button>
-                <button style={styles.navBtn(teacherPage === "toolbox")} onClick={() => setTeacherPage("toolbox")}>
+                <button className="nav-btn" style={styles.navBtn(teacherPage === "toolbox")} onClick={() => setTeacherPage("toolbox")}>
                   <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><Icons.Wrench /> Toolbox</span>
                 </button>
               </nav>
@@ -4579,12 +4617,12 @@
                 students={students}
                 onQuickAssign={async (contentId, studentId) => {
                   try {
-                    const student = students.find(s => s.id === studentId);
+                    const item = contentLibrary.find(c => c.id === contentId);
                     await apiFetch('assignments.php', {
                       method: 'POST',
                       body: JSON.stringify({
                         studentId,
-                        weekLabel: new Date().toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' }) + ' — Quick assign',
+                        weekLabel: item?.title || 'Quick assign',
                         steps: [{ contentId, notes: '' }]
                       })
                     }, token);
