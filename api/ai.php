@@ -442,7 +442,7 @@ Return ONLY a JSON object: {"enharmonic_map": {... the corrected map ...}}';
         jsonResponse($parsed ?: ['error' => 'AI returned invalid JSON']);
         break;
 
-    // ─── Generate cover art image for content ───
+    // ─── Generate cover art SVG for content ───
     case 'generate_cover_art':
         $title = trim($body['title'] ?? '');
         $track = trim($body['track'] ?? 'Jazz');
@@ -450,74 +450,49 @@ Return ONLY a JSON object: {"enharmonic_map": {... the corrected map ...}}';
         $contentId = trim($body['content_id'] ?? '');
         if (!$title) jsonResponse(['error' => 'Title required'], 400);
 
-        // Step 1: Ask AI for an image prompt based on the music title
-        $promptRequest = "Generate a short, vivid image description for album/cover art for a piano piece called \"$title\" (genre: $track, type: $type). The image should be atmospheric and musical — think abstract art, instruments, moody lighting, sheet music motifs. Do NOT include any text or words in the image. Keep the description under 80 words. Respond with just the image description, no JSON.";
+        // Ask AI to generate an SVG cover art design
+        $svgPrompt = "Create a beautiful, artistic SVG cover art image (400x400) for a piano piece called \"$title\" (genre: $track, type: $type).
 
-        $imagePrompt = callClaude($MUSIC_SYSTEM, $promptRequest, 256);
-        $imagePrompt = trim($imagePrompt, '"\' ');
+Requirements:
+- Output ONLY the raw SVG code, starting with <svg and ending with </svg>
+- Size: viewBox=\"0 0 400 400\"
+- Use a rich, atmospheric color palette appropriate to the genre:
+  - Jazz: deep blues, amber, smoky purples
+  - Contemporary: bright gradients, modern teal/coral
+  - Foundation: warm earth tones, gold, cream
+  - Crossover: vibrant mixed palette
+- Include abstract musical elements: piano keys, music notes, sound waves, staff lines, circles, geometric shapes
+- Make it visually striking with gradients, layered shapes, and depth
+- Do NOT include any readable text or words — purely visual/abstract
+- Use SVG elements: rect, circle, ellipse, path, polygon, line, linearGradient, radialGradient
+- Make it feel like professional album art";
 
-        // Step 2: Generate image using MiniMax Image API
-        $apiKey = defined('MINIMAX_API_KEY') ? MINIMAX_API_KEY : '';
-        if (!$apiKey) jsonResponse(['error' => 'API key not configured'], 500);
+        $svgResult = callClaude($MUSIC_SYSTEM . "\n\nFor this request, generate SVG artwork. Output ONLY the SVG code, no JSON wrapping, no markdown fences, no explanation.", $svgPrompt, 4096);
 
-        $imgPayload = [
-            'model' => 'image-01',
-            'prompt' => $imagePrompt . ' Beautiful, artistic, no text, no words, no letters.',
-            'aspect_ratio' => '1:1',
-            'response_format' => 'url',
-            'n' => 1
-        ];
-
-        $ch = curl_init('https://api.minimax.io/v1/image/generation');
-        curl_setopt_array($ch, [
-            CURLOPT_POST => true,
-            CURLOPT_HTTPHEADER => [
-                'Content-Type: application/json',
-                'Authorization: Bearer ' . $apiKey
-            ],
-            CURLOPT_POSTFIELDS => json_encode($imgPayload),
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 60
-        ]);
-
-        $imgResponse = curl_exec($ch);
-        $imgHttpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        $imgResult = json_decode($imgResponse, true);
-
-        // Extract image URL from response
-        $imageUrl = $imgResult['data'][0]['url'] ?? ($imgResult['data']['image_urls'][0] ?? null);
-
-        if (!$imageUrl) {
-            // If MiniMax image API fails, try returning the prompt for manual use
-            jsonResponse(['error' => 'Image generation failed', 'prompt' => $imagePrompt, 'debug' => $imgResult], 500);
+        // Extract SVG from response (in case AI wrapped it)
+        if (preg_match('/<svg[\s\S]*<\/svg>/i', $svgResult, $svgMatch)) {
+            $svg = $svgMatch[0];
+        } else {
+            jsonResponse(['error' => 'AI did not generate valid SVG', 'raw' => substr($svgResult, 0, 500)], 500);
         }
 
-        // Step 3: Download and save the image locally
+        // Save SVG as file
         $uploadDir = __DIR__ . '/../uploads/covers/';
         if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
 
-        $imgData = file_get_contents($imageUrl);
-        if ($imgData) {
-            $filename = bin2hex(random_bytes(12)) . '.png';
-            file_put_contents($uploadDir . $filename, $imgData);
-            $localUrl = 'uploads/covers/' . $filename;
+        $filename = bin2hex(random_bytes(12)) . '.svg';
+        file_put_contents($uploadDir . $filename, $svg);
+        $localUrl = 'uploads/covers/' . $filename;
 
-            // Step 4: Save to content record if content_id provided
-            if ($contentId) {
-                $db = getDB();
-                // Auto-migrate cover_image_url column
-                try { $db->exec('ALTER TABLE content ADD COLUMN cover_image_url VARCHAR(500) DEFAULT NULL'); } catch (PDOException $e) {}
-                $stmt = $db->prepare('UPDATE content SET cover_image_url = ? WHERE id = ? AND teacher_id = ?');
-                $stmt->execute([$localUrl, $contentId, $teacherId]);
-            }
-
-            jsonResponse(['cover_url' => $localUrl, 'prompt' => $imagePrompt]);
-        } else {
-            // Can't download, return the remote URL
-            jsonResponse(['cover_url' => $imageUrl, 'prompt' => $imagePrompt, 'remote' => true]);
+        // Save to content record if content_id provided
+        if ($contentId) {
+            $db = getDB();
+            try { $db->exec('ALTER TABLE content ADD COLUMN cover_image_url VARCHAR(500) DEFAULT NULL'); } catch (PDOException $e) {}
+            $stmt = $db->prepare('UPDATE content SET cover_image_url = ? WHERE id = ? AND teacher_id = ?');
+            $stmt->execute([$localUrl, $contentId, $teacherId]);
         }
+
+        jsonResponse(['cover_url' => $localUrl]);
         break;
 
     default:

@@ -1405,6 +1405,32 @@
       return map[noteIndex % 12];
     }
 
+    const ENHARMONIC_PAIRS = {
+      'C': 'B#', 'B#': 'C',
+      'C#': 'Db', 'Db': 'C#',
+      'D': 'D', // no enharmonic
+      'D#': 'Eb', 'Eb': 'D#',
+      'E': 'Fb', 'Fb': 'E',
+      'F': 'E#', 'E#': 'F',
+      'F#': 'Gb', 'Gb': 'F#',
+      'G': 'G', // no enharmonic
+      'G#': 'Ab', 'Ab': 'G#',
+      'A': 'A', // no enharmonic
+      'A#': 'Bb', 'Bb': 'A#',
+      'B': 'Cb', 'Cb': 'B',
+    };
+
+    function toggleEnharmonic(rootIndex, noteIndex) {
+      const map = ENHARMONIC_MAP[rootIndex] || [...NOTE_NAMES];
+      const current = map[noteIndex % 12];
+      const alt = ENHARMONIC_PAIRS[current];
+      if (alt && alt !== current) {
+        const newMap = [...map];
+        newMap[noteIndex % 12] = alt;
+        ENHARMONIC_MAP[rootIndex] = newMap;
+      }
+    }
+
     // Intervals from root in semitones
     let CHORD_TYPES = [
       { name: "Major",        symbol: "",       intervals: [0, 4, 7],          labels: ["R", "3", "5"] },
@@ -1512,6 +1538,7 @@
     function ChordReference({ onBack, allowedChords }) {
       const [rootIndex, setRootIndex] = useState(0);
       const [chordTypeIndex, setChordTypeIndex] = useState(0);
+      const [, forceChordUpdate] = useState(0);
 
       const filteredChords = allowedChords ? CHORD_TYPES.filter(c => allowedChords.includes(c.name)) : CHORD_TYPES;
       const root = rootIndex;
@@ -1565,7 +1592,24 @@
             {/* Chord display */}
             <div className="student-card" style={{ ...styles.card, textAlign: "center" }}>
               <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "36px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>{symbol}</div>
-              <div style={{ fontSize: "16px", color: "#6a5040", marginBottom: "4px" }}>{noteNames.join(" - ")}</div>
+              <div style={{ fontSize: "16px", color: "#6a5040", marginBottom: "4px", display: "flex", justifyContent: "center", gap: "4px", flexWrap: "wrap", alignItems: "center" }}>
+                {noteNames.map((name, i) => (
+                  <React.Fragment key={i}>
+                    {i > 0 && <span style={{ color: "#cbd5e1" }}>-</span>}
+                    <button onClick={() => {
+                      const noteIdx = (root + chordType.intervals[i]) % 12;
+                      toggleEnharmonic(root, noteIdx);
+                      forceChordUpdate(n => n + 1);
+                    }} style={{
+                      background: "none", border: "1px dashed transparent", borderRadius: "6px",
+                      padding: "2px 6px", cursor: "pointer", fontSize: "16px", fontWeight: 600,
+                      color: ENHARMONIC_PAIRS[name] && ENHARMONIC_PAIRS[name] !== name ? "#d97706" : "#6a5040",
+                    }} title={ENHARMONIC_PAIRS[name] && ENHARMONIC_PAIRS[name] !== name ? `Tap to change to ${ENHARMONIC_PAIRS[name]}` : "No enharmonic alternative"}>
+                      {name}
+                    </button>
+                  </React.Fragment>
+                ))}
+              </div>
               <div style={{ display: "flex", justifyContent: "center", gap: "8px", marginTop: "8px", flexWrap: "wrap" }}>
                 {chordType.labels.map((lbl, i) => (
                   <span key={i} style={{
@@ -1611,6 +1655,7 @@
     function ScaleReference({ onBack, allowedScales }) {
       const [rootIndex, setRootIndex] = useState(0);
       const [scaleTypeIndex, setScaleTypeIndex] = useState(0);
+      const [, forceUpdate] = useState(0);
 
       const filteredScales = allowedScales ? SCALE_TYPES.filter(s => allowedScales.includes(s.name)) : SCALE_TYPES;
       const scaleType = filteredScales[scaleTypeIndex] || filteredScales[0] || SCALE_TYPES[0];
@@ -1661,7 +1706,24 @@
               <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "36px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>
                 {NOTE_NAMES[rootIndex]} {scaleType.name}
               </div>
-              <div style={{ fontSize: "16px", color: "#64748b", marginBottom: "4px" }}>{noteNames.join(" - ")}</div>
+              <div style={{ fontSize: "16px", color: "#64748b", marginBottom: "4px", display: "flex", justifyContent: "center", gap: "4px", flexWrap: "wrap", alignItems: "center" }}>
+                {noteNames.map((name, i) => (
+                  <React.Fragment key={i}>
+                    {i > 0 && <span style={{ color: "#cbd5e1" }}>-</span>}
+                    <button onClick={() => {
+                      const noteIdx = (rootIndex + scaleType.intervals[i]) % 12;
+                      toggleEnharmonic(rootIndex, noteIdx);
+                      forceUpdate(n => n + 1);
+                    }} style={{
+                      background: "none", border: "1px dashed transparent", borderRadius: "6px",
+                      padding: "2px 6px", cursor: "pointer", fontSize: "16px", fontWeight: 600,
+                      color: ENHARMONIC_PAIRS[name] && ENHARMONIC_PAIRS[name] !== name ? "#d97706" : "#64748b",
+                    }} title={ENHARMONIC_PAIRS[name] && ENHARMONIC_PAIRS[name] !== name ? `Tap to change to ${ENHARMONIC_PAIRS[name]}` : "No enharmonic alternative"}>
+                      {name}
+                    </button>
+                  </React.Fragment>
+                ))}
+              </div>
               <div style={{ display: "flex", justifyContent: "center", gap: "8px", marginTop: "8px", flexWrap: "wrap" }}>
                 {scaleType.labels.map((lbl, i) => (
                   <span key={i} style={{
