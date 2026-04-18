@@ -68,6 +68,58 @@ switch ($method) {
             intval($body['practiceSeconds'] ?? 0)
         ]);
 
+
+        // Check if all steps are now complete — send email notification to teacher
+        try {
+            $totalStmt = $db->prepare('SELECT COUNT(*) FROM assignment_steps WHERE assignment_id = ?');
+            $totalStmt->execute([$assignmentId]);
+            $totalSteps = (int)$totalStmt->fetchColumn();
+
+            $doneStmt = $db->prepare('SELECT COUNT(*) FROM progress WHERE assignment_id = ? AND student_id = ? AND completed = 1');
+            $doneStmt->execute([$assignmentId, $studentId]);
+            $doneSteps = (int)$doneStmt->fetchColumn();
+
+            if ($totalSteps > 0 && $doneSteps >= $totalSteps) {
+                $infoStmt = $db->prepare('
+                    SELECT t.email AS teacher_email, t.name AS teacher_name, s.name AS student_name, a.week_label
+                    FROM assignments a
+                    JOIN students s ON s.id = a.student_id
+                    JOIN teachers t ON t.id = a.teacher_id
+                    WHERE a.id = ?
+                ');
+                $infoStmt->execute([$assignmentId]);
+                $info = $infoStmt->fetch();
+
+                if ($info && $info['teacher_email']) {
+                    $studentName = $info['student_name'] ?? 'A student';
+                    $weekLabel = $info['week_label'] ?? 'their assignment';
+
+                    $subject = "$studentName has completed all practice steps!";
+                    $htmlBody = '
+                    <div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
+                        <div style="background: linear-gradient(135deg, #1e293b, #334155); border-radius: 12px; padding: 30px; color: #fff; text-align: center;">
+                            <h2 style="margin: 0 0 8px 0; color: #fbbf24;">&#127926; Practice Complete!</h2>
+                            <p style="margin: 0; font-size: 16px; color: #e2e8f0;">
+                                <strong>' . htmlspecialchars($studentName) . '</strong> has finished all <strong>' . $totalSteps . '</strong> steps in <strong>' . htmlspecialchars($weekLabel) . '</strong>.
+                            </p>
+                        </div>
+                        <div style="padding: 20px 0; text-align: center;">
+                            <a href="https://www.jazzpiano.co.nz/mywoodshedmusic/" style="display: inline-block; background: #d97706; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">View in My Woodshed Music</a>
+                        </div>
+                        <p style="font-size: 12px; color: #94a3b8; text-align: center;">My Woodshed Music &mdash; jazzpiano.co.nz</p>
+                    </div>';
+
+                    $headers = "MIME-Version: 1.0\r\n";
+                    $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+                    $headers .= "From: My Woodshed Music <noreply@jazzpiano.co.nz>\r\n";
+
+                    @mail($info['teacher_email'], $subject, $htmlBody, $headers);
+                }
+            }
+        } catch (Exception $e) {
+            error_log('Notification email error: ' . $e->getMessage());
+        }
+
         jsonResponse(['success' => true, 'studentId' => $studentId, 'assignmentId' => $assignmentId, 'stepId' => $stepId]);
         break;
 
