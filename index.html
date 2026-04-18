@@ -991,6 +991,96 @@
                 )}
               </div>
             </div>
+            {/* Features Showcase */}
+            <div style={{ marginTop: "48px", textAlign: "center" }}>
+              <h2 style={{ fontSize: "20px", fontWeight: 600, color: "#1e293b", marginBottom: "6px" }}>
+                Your practice studio, in one place
+              </h2>
+              <p style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "32px" }}>
+                Built for piano teachers and their students
+              </p>
+
+              {/* Teacher features */}
+              <div style={{ marginBottom: "32px" }}>
+                <div style={{
+                  display: "inline-block", padding: "4px 14px", borderRadius: "12px",
+                  background: "rgba(217,119,6,0.1)", color: "#d97706",
+                  fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px",
+                  marginBottom: "16px",
+                }}>For Teachers</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", textAlign: "left" }}>
+                  {[
+                    { icon: "library", title: "Content Library", desc: "YouTube, PDFs, MP3s, exercises \u2014 all in one searchable library" },
+                    { icon: "assign", title: "Weekly Assignments", desc: "Build step-by-step practice plans and track completion" },
+                    { icon: "ai", title: "AI-Powered Tools", desc: "Auto-generate content, summaries, and practice suggestions" },
+                    { icon: "progress", title: "Student Progress", desc: "See who\u2019s practising, listen to recordings, add observations" },
+                  ].map((f, i) => (
+                    <div key={i} style={{
+                      padding: "14px", borderRadius: "10px",
+                      background: "rgba(255,255,255,0.7)", border: "1px solid rgba(51,65,85,0.06)",
+                    }}>
+                      <div style={{ fontSize: "13px", fontWeight: 600, color: "#1e293b", marginBottom: "4px" }}>{f.title}</div>
+                      <div style={{ fontSize: "12px", color: "#64748b", lineHeight: 1.4 }}>{f.desc}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Student features */}
+              <div style={{ marginBottom: "32px" }}>
+                <div style={{
+                  display: "inline-block", padding: "4px 14px", borderRadius: "12px",
+                  background: "rgba(251,191,36,0.1)", color: "#b45309",
+                  fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px",
+                  marginBottom: "16px",
+                }}>For Students</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", textAlign: "left" }}>
+                  {[
+                    { title: "Practice Checklist", desc: "Clear steps to follow each week with built-in timers" },
+                    { title: "Record Yourself", desc: "Capture takes and get AI feedback on your playing" },
+                    { title: "Toolbox", desc: "Metronome, chord charts, scales, ear training, backing tracks" },
+                    { title: "Track Your Progress", desc: "See how far you\u2019ve come and revisit past assignments" },
+                  ].map((f, i) => (
+                    <div key={i} style={{
+                      padding: "14px", borderRadius: "10px",
+                      background: "rgba(255,255,255,0.7)", border: "1px solid rgba(51,65,85,0.06)",
+                    }}>
+                      <div style={{ fontSize: "13px", fontWeight: 600, color: "#1e293b", marginBottom: "4px" }}>{f.title}</div>
+                      <div style={{ fontSize: "12px", color: "#64748b", lineHeight: 1.4 }}>{f.desc}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* How it works */}
+              <div style={{ marginBottom: "32px" }}>
+                <div style={{
+                  display: "inline-block", padding: "4px 14px", borderRadius: "12px",
+                  background: "rgba(30,41,59,0.06)", color: "#475569",
+                  fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px",
+                  marginBottom: "16px",
+                }}>How It Works</div>
+                <div style={{ display: "flex", gap: "16px", justifyContent: "center", flexWrap: "wrap" }}>
+                  {[
+                    { num: "1", text: "Teacher builds a content library" },
+                    { num: "2", text: "Creates weekly assignments from it" },
+                    { num: "3", text: "Student works through practice steps" },
+                    { num: "4", text: "Teacher tracks progress & gives feedback" },
+                  ].map((s, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <div style={{
+                        width: "28px", height: "28px", borderRadius: "50%",
+                        background: "linear-gradient(135deg, #1e293b, #334155)",
+                        color: "#fbbf24", display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: "13px", fontWeight: 700, flexShrink: 0,
+                      }}>{s.num}</div>
+                      <span style={{ fontSize: "12px", color: "#475569", whiteSpace: "nowrap" }}>{s.text}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             <div style={{ textAlign: "center", marginTop: "24px", fontSize: "12px", color: "#94a3b8" }}>
               &copy; {new Date().getFullYear()} Boing Media Ltd. Created by Dr Mark Baynes.
             </div>
@@ -3697,10 +3787,6 @@
     function StudentToolboxAccess({ studentId, studentName, token }) {
       const [allowedScales, setAllowedScales] = useState(null); // null = all allowed
       const [allowedChords, setAllowedChords] = useState(null);
-      const [showStudentTour, setShowStudentTour] = useState(() => {
-        if (!isStudentAuth) return false; // Don't show tour when teacher is viewing as student
-        try { return !sessionStorage.getItem('woodshed_student_tour_done'); } catch(e) { return true; }
-      });
       const [saving, setSaving] = useState(false);
       const [saved, setSaved] = useState(false);
       const [loaded, setLoaded] = useState(false);
@@ -5477,6 +5563,9 @@
       const [activeTool, setActiveTool] = useState(null); // "metronome" | "chords" | null
       const [allowedScales, setAllowedScales] = useState(null);
       const [allowedChords, setAllowedChords] = useState(null);
+      const [showStudentTour, setShowStudentTour] = useState(() => {
+        try { return !sessionStorage.getItem('woodshed_student_tour_done'); } catch(e) { return true; }
+      });
 
       const loadData = useCallback(async () => {
         try {
@@ -5871,7 +5960,7 @@
               onNavigate={(tab) => setActiveTab(tab)}
             />
           )}
-          {isStudentAuth && <TourHelpButton onClick={() => setShowStudentTour(true)} />}
+          <TourHelpButton onClick={() => setShowStudentTour(true)} />
         </div>
       );
     }
@@ -6803,11 +6892,11 @@
           background: "rgba(15, 23, 42, 0.6)", backdropFilter: "blur(4px)",
           display: "flex", alignItems: "center", justifyContent: "center",
           padding: "20px",
-        }} onClick={onClose}>
+        }}>
           <div style={{
             background: "#fff", borderRadius: "16px", maxWidth: "480px", width: "100%",
             boxShadow: "0 24px 48px rgba(0,0,0,0.2)", overflow: "hidden",
-          }} onClick={e => e.stopPropagation()}>
+          }}>
             {/* Progress bar */}
             <div style={{ height: "3px", background: "#f1f5f9" }}>
               <div style={{
@@ -6844,17 +6933,17 @@
               {/* Navigation */}
               <div style={{ display: "flex", gap: "8px", justifyContent: "space-between" }}>
                 <div>
-                  <button onClick={onClose} style={{
+                  <button onClick={e => { e.stopPropagation(); onClose(); }} style={{
                     ...styles.btnGhost, fontSize: "13px", padding: "8px 16px",
                   }}>Skip Tour</button>
                 </div>
                 <div style={{ display: "flex", gap: "8px" }}>
                   {!isFirst && (
-                    <button onClick={() => setStep(s => s - 1)} style={{
+                    <button onClick={e => { e.stopPropagation(); setStep(s => s - 1); }} style={{
                       ...styles.btnGhost, fontSize: "13px", padding: "8px 16px",
                     }}>Back</button>
                   )}
-                  <button onClick={() => isLast ? onClose() : setStep(s => s + 1)} style={{
+                  <button onClick={e => { e.stopPropagation(); isLast ? onClose() : setStep(s => s + 1); }} style={{
                     ...styles.btnPrimary, fontSize: "13px", padding: "8px 20px",
                   }}>
                     {isLast ? "Get Started" : "Next"}
@@ -6907,6 +6996,15 @@
       const [loading, setLoading] = useState(false);
       const [error, setError] = useState("");
       const [viewingLesson, setViewingLesson] = useState(null);
+      const [showTour, setShowTour] = useState(false);
+      useEffect(() => {
+        try {
+          if (!sessionStorage.getItem('woodshed_teacher_tour_done')) {
+            const timer = setTimeout(() => setShowTour(true), 800);
+            return () => clearTimeout(timer);
+          }
+        } catch(e) {}
+      }, []);
 
       // Data fetchers
       const fetchStudents = useCallback(async () => {
