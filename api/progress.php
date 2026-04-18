@@ -80,6 +80,12 @@ switch ($method) {
             $doneSteps = (int)$doneStmt->fetchColumn();
 
             if ($totalSteps > 0 && $doneSteps >= $totalSteps) {
+                // Skip if we already sent a notification for this completion
+                $alreadySent = $db->prepare('SELECT 1 FROM completion_notifications WHERE assignment_id = ? AND student_id = ?');
+                $alreadySent->execute([$assignmentId, $studentId]);
+                if (!$alreadySent->fetch()) {
+                $db->prepare('INSERT IGNORE INTO completion_notifications (assignment_id, student_id) VALUES (?, ?)')->execute([$assignmentId, $studentId]);
+
                 $infoStmt = $db->prepare('
                     SELECT t.email AS teacher_email, t.name AS teacher_name, s.name AS student_name, a.week_label
                     FROM assignments a
@@ -115,6 +121,7 @@ switch ($method) {
 
                     @mail($info['teacher_email'], $subject, $htmlBody, $headers);
                 }
+                } // end duplicate check
             }
         } catch (Exception $e) {
             error_log('Notification email error: ' . $e->getMessage());
