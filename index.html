@@ -2190,7 +2190,7 @@
       const [countBeat, setCountBeat] = useState(0);
       const countInRef = useRef(null);
 
-      // 4-beat count-in, then call the callback
+      // 4-beat count-in (2 beats per chord) then play
       const playWithCountIn = (callback) => {
         // Ensure audio context and trigger sample preload
         getAudioCtx();
@@ -2198,11 +2198,12 @@
         setCountingIn(true);
         setCountBeat(0);
 
-        // Calculate gap: for progressions use progSpeed, otherwise 500ms
-        const beatGap = mode === "progressions" ? Math.min(progSpeed, 700) : 500;
+        // 2 beats per chord: beat gap = half the chord spacing
+        // For progressions, this means 4 clicks span exactly 2 chords of time
+        const beatGap = mode === "progressions" ? Math.max(progSpeed / 2, 200) : 400;
         let beat = 0;
 
-        // Play first click immediately
+        // Play first click immediately (downbeat of "bar 1")
         playClickSound(true);
         setCountBeat(1);
         beat = 1;
@@ -2210,12 +2211,13 @@
         countInRef.current = setInterval(() => {
           beat++;
           if (beat <= 4) {
-            playClickSound(false);
+            // Beat 3 is a downbeat (start of "bar 2")
+            playClickSound(beat === 3);
             setCountBeat(beat);
           }
           if (beat === 4) {
             clearInterval(countInRef.current);
-            // Small delay after last click, then play the content
+            // Play on the next downbeat
             setTimeout(() => {
               setCountingIn(false);
               setCountBeat(0);
