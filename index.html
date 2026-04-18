@@ -2164,12 +2164,71 @@
       { name: "Octave", semitones: 12 },
     ];
 
+    // Count-in click sound (reusable across ear training)
+    function playClickSound(isDownbeat) {
+      const ctx = getAudioCtx();
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.value = isDownbeat ? 1000 : 700;
+      gain.gain.setValueAtTime(isDownbeat ? 0.3 : 0.15, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      osc.start(now);
+      osc.stop(now + 0.08);
+    }
+
     function EarTraining({ onBack }) {
       const [mode, setMode] = useState("intervals"); // intervals or chords
       const [currentQuestion, setCurrentQuestion] = useState(null);
       const [answer, setAnswer] = useState(null);
       const [score, setScore] = useState({ correct: 0, total: 0 });
       const [streak, setStreak] = useState(0);
+      const [countingIn, setCountingIn] = useState(false);
+      const [countBeat, setCountBeat] = useState(0);
+      const countInRef = useRef(null);
+
+      // 4-beat count-in, then call the callback
+      const playWithCountIn = (callback) => {
+        // Ensure audio context and trigger sample preload
+        getAudioCtx();
+        ensurePreload();
+        setCountingIn(true);
+        setCountBeat(0);
+
+        // Calculate gap: for progressions use progSpeed, otherwise 500ms
+        const beatGap = mode === "progressions" ? Math.min(progSpeed, 700) : 500;
+        let beat = 0;
+
+        // Play first click immediately
+        playClickSound(true);
+        setCountBeat(1);
+        beat = 1;
+
+        countInRef.current = setInterval(() => {
+          beat++;
+          if (beat <= 4) {
+            playClickSound(false);
+            setCountBeat(beat);
+          }
+          if (beat === 4) {
+            clearInterval(countInRef.current);
+            // Small delay after last click, then play the content
+            setTimeout(() => {
+              setCountingIn(false);
+              setCountBeat(0);
+              callback();
+            }, beatGap);
+          }
+        }, beatGap);
+      };
+
+      // Cleanup on unmount
+      useEffect(() => {
+        return () => { if (countInRef.current) clearInterval(countInRef.current); };
+      }, []);
 
       const playInterval = (semitones, rootMidi) => {
         playNote(rootMidi, 0.8);
@@ -2186,7 +2245,7 @@
         const q = { type: "interval", rootMidi, interval, semitones: interval.semitones };
         setCurrentQuestion(q);
         setAnswer(null);
-        setTimeout(() => playInterval(q.semitones, q.rootMidi), 200);
+        playWithCountIn(() => playInterval(q.semitones, q.rootMidi));
       };
 
       const QUIZ_CHORDS = [
@@ -2263,7 +2322,7 @@
         const q = { type: "progression", rootMidi, progression: prog };
         setCurrentQuestion(q);
         setAnswer(null);
-        setTimeout(() => playProgression(prog.chords, rootMidi, progSpeed), 200);
+        playWithCountIn(() => playProgression(prog.chords, rootMidi, progSpeed));
       };
 
       const newChordQuestion = () => {
@@ -2272,7 +2331,7 @@
         const q = { type: "chord", rootMidi, chord };
         setCurrentQuestion(q);
         setAnswer(null);
-        setTimeout(() => playChord(chord.intervals, rootMidi), 200);
+        playWithCountIn(() => playChord(chord.intervals, rootMidi));
       };
 
       const checkAnswer = (guess) => {
@@ -2286,10 +2345,12 @@
       };
 
       const replayQuestion = () => {
-        if (!currentQuestion) return;
-        if (currentQuestion.type === "interval") playInterval(currentQuestion.semitones, currentQuestion.rootMidi);
-        else if (currentQuestion.type === "chord") playChord(currentQuestion.chord.intervals, currentQuestion.rootMidi);
-        else playProgression(currentQuestion.progression.chords, currentQuestion.rootMidi, progSpeed);
+        if (!currentQuestion || countingIn) return;
+        playWithCountIn(() => {
+          if (currentQuestion.type === "interval") playInterval(currentQuestion.semitones, currentQuestion.rootMidi);
+          else if (currentQuestion.type === "chord") playChord(currentQuestion.chord.intervals, currentQuestion.rootMidi);
+          else playProgression(currentQuestion.progression.chords, currentQuestion.rootMidi, progSpeed);
+        });
       };
 
       const nextQuestion = mode === "intervals" ? newIntervalQuestion : mode === "chords" ? newChordQuestion : newProgressionQuestion;
@@ -2388,10 +2449,24 @@
               ) : (
                 <div>
                   <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "20px", color: "#1e293b", marginBottom: "16px" }}>
-                    {answer ? (answer.correct ? "Correct!" : `Not quite — it was ${correctAnswer}`) : "What do you hear?"}
+                    {countingIn ? (
+                      <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px" }}>
+                        {[1,2,3,4].map(b => (
+                          <span key={b} style={{
+                            display: "inline-flex", alignItems: "center", justifyContent: "center",
+                            width: "36px", height: "36px", borderRadius: "50%",
+                            background: b <= countBeat ? "#f59e0b" : "rgba(0,0,0,0.05)",
+                            color: b <= countBeat ? "#fff" : "#cbd5e1",
+                            fontWeight: 700, fontSize: "18px",
+                            transition: "all 0.1s",
+                            transform: b === countBeat ? "scale(1.2)" : "scale(1)",
+                          }}>{b}</span>
+                        ))}
+                      </span>
+                    ) : answer ? (answer.correct ? "Correct!" : `Not quite — it was ${correctAnswer}`) : "What do you hear?"}
                   </div>
                   <div style={{ display: "flex", gap: "8px", justifyContent: "center", marginBottom: "20px" }}>
-                    <button onClick={replayQuestion} style={{ ...styles.btnGhost, display: "flex", alignItems: "center", gap: "6px" }}>
+                    <button onClick={() => !countingIn && replayQuestion()} disabled={countingIn} style={{ ...styles.btnGhost, display: "flex", alignItems: "center", gap: "6px", opacity: countingIn ? 0.5 : 1 }}>
                       <Icons.Play /> Replay
                     </button>
                     {answer && <button onClick={nextQuestion} style={styles.btnPrimary}>Next</button>}
@@ -2402,7 +2477,7 @@
                       const isCorrectAnswer = opt === correctAnswer;
                       const isWrongGuess = answer && answer.guess === opt && !answer.correct;
                       return (
-                        <button key={opt} onClick={() => !answer && checkAnswer(opt)} disabled={!!answer} style={{
+                        <button key={opt} onClick={() => !answer && !countingIn && checkAnswer(opt)} disabled={!!answer || countingIn} style={{
                           padding: "10px 16px", borderRadius: "10px", border: "2px solid",
                           cursor: answer ? "default" : "pointer", fontSize: "13px", fontWeight: 500,
                           background: answer && isCorrectAnswer ? "rgba(16,185,129,0.15)" : isWrongGuess ? "rgba(239,68,68,0.1)" : "rgba(0,0,0,0.02)",
