@@ -2234,15 +2234,24 @@
       ];
 
       const [progCategory, setProgCategory] = useState("all");
+      const [progSpeed, setProgSpeed] = useState(700); // ms between chords
+      const [progBass, setProgBass] = useState(true); // play bass root note
 
-      const playProgression = (chordNames, rootMidi) => {
+      const playProgression = (chordNames, rootMidi, speed) => {
+        const gap = speed || progSpeed;
+        const dur = Math.max(gap / 1000 + 0.4, 1.0);
         chordNames.forEach((name, i) => {
           const chord = DIATONIC_CHORDS_MAJOR[name];
           if (!chord) return;
           const chordRoot = rootMidi + chord.semi;
           setTimeout(() => {
-            chord.intervals.forEach(interval => playNote(chordRoot + interval, 1.2));
-          }, i * 700);
+            // Piano voicing
+            chord.intervals.forEach(interval => playNote(chordRoot + interval, dur));
+            // Bass root note — 2 octaves below chord root
+            if (progBass) {
+              playNote(chordRoot - 24, dur);
+            }
+          }, i * gap);
         });
       };
 
@@ -2254,7 +2263,7 @@
         const q = { type: "progression", rootMidi, progression: prog };
         setCurrentQuestion(q);
         setAnswer(null);
-        setTimeout(() => playProgression(prog.chords, rootMidi), 200);
+        setTimeout(() => playProgression(prog.chords, rootMidi, progSpeed), 200);
       };
 
       const newChordQuestion = () => {
@@ -2280,7 +2289,7 @@
         if (!currentQuestion) return;
         if (currentQuestion.type === "interval") playInterval(currentQuestion.semitones, currentQuestion.rootMidi);
         else if (currentQuestion.type === "chord") playChord(currentQuestion.chord.intervals, currentQuestion.rootMidi);
-        else playProgression(currentQuestion.progression.chords, currentQuestion.rootMidi);
+        else playProgression(currentQuestion.progression.chords, currentQuestion.rootMidi, progSpeed);
       };
 
       const nextQuestion = mode === "intervals" ? newIntervalQuestion : mode === "chords" ? newChordQuestion : newProgressionQuestion;
@@ -2320,6 +2329,31 @@
                     color: progCategory === cat ? "#92400e" : "#94a3b8",
                   }}>{cat}</button>
                 ))}
+              </div>
+            )}
+
+            {/* Progression speed & bass controls */}
+            {mode === "progressions" && (
+              <div className="student-card" style={{ ...styles.card, padding: "16px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+                  <label style={{ fontSize: "13px", fontWeight: 600, color: "#64748b", minWidth: "50px" }}>Speed</label>
+                  <input type="range" min="400" max="1800" step="100" value={progSpeed}
+                    onChange={e => setProgSpeed(parseInt(e.target.value))}
+                    style={{ flex: 1, accentColor: "#f59e0b" }} />
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "12px", color: "#94a3b8", minWidth: "55px", textAlign: "right" }}>
+                    {progSpeed < 600 ? "Fast" : progSpeed < 900 ? "Medium" : progSpeed < 1300 ? "Slow" : "Very Slow"}
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <label style={{ fontSize: "13px", fontWeight: 600, color: "#64748b", minWidth: "50px" }}>Bass</label>
+                  <button onClick={() => setProgBass(!progBass)} style={{
+                    padding: "6px 16px", borderRadius: "8px", border: "none", cursor: "pointer",
+                    fontSize: "12px", fontWeight: 600,
+                    background: progBass ? "rgba(90,154,122,0.2)" : "rgba(0,0,0,0.04)",
+                    color: progBass ? "#2d6a4f" : "#94a3b8",
+                  }}>{progBass ? "Bass root on" : "Bass root off"}</button>
+                  <span style={{ fontSize: "11px", color: "#94a3b8" }}>Root note 2 octaves below</span>
+                </div>
               </div>
             )}
 
