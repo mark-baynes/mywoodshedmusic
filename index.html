@@ -4127,7 +4127,7 @@
     // TEACHER DASHBOARD
     // ============================================================
 
-    function TeacherDashboard({ students, assignments, progress }) {
+    function TeacherDashboard({ students, assignments, progress, token }) {
       const studentStats = students.map(student => {
         const studentAssignments = assignments.filter(a => a.studentId === student.id && a.released);
         const studentProgress = progress.filter(p => p.studentId === student.id);
@@ -4178,8 +4178,25 @@
 
       return (
         <div>
-          <h2 style={styles.pageTitle}>Dashboard</h2>
-          <p style={styles.pageSubtitle}>Overview of all your students</p>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "4px" }}>
+            <div>
+              <h2 style={styles.pageTitle}>Dashboard</h2>
+              <p style={styles.pageSubtitle}>Overview of all your students</p>
+            </div>
+            <button onClick={async () => {
+              try {
+                const res = await fetch(API_BASE + 'export.php?scope=mine', { headers: { 'Authorization': 'Bearer ' + token } });
+                if (!res.ok) throw new Error('Export failed');
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = 'my_data_' + new Date().toISOString().slice(0,10) + '.zip'; a.click();
+                URL.revokeObjectURL(url);
+              } catch (err) { alert('Export failed: ' + err.message); }
+            }} style={{ ...styles.btnGhost, display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", whiteSpace: "nowrap" }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download My Data
+            </button>
+          </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "16px", marginBottom: "28px" }}>
             {[
@@ -4613,6 +4630,56 @@
               </div>
             )}
           </div>
+
+          {/* Data Management */}
+          <div style={{ ...styles.card, marginTop: "24px" }}>
+            <h2 style={{ fontSize: "18px", fontWeight: 600, color: "#1e293b", marginBottom: "16px" }}>Data Management</h2>
+            <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+              <button onClick={async () => {
+                try {
+                  const res = await fetch(API_BASE + 'export.php?scope=all', { headers: { 'Authorization': 'Bearer ' + token } });
+                  if (!res.ok) throw new Error('Export failed');
+                  const blob = await res.blob();
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a'); a.href = url; a.download = 'woodshed_all_data_' + new Date().toISOString().slice(0,10) + '.zip'; a.click();
+                  URL.revokeObjectURL(url);
+                } catch (err) { alert('Export failed: ' + err.message); }
+              }} style={{ ...styles.btnPrimary, display: "flex", alignItems: "center", gap: "6px" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download All Data
+              </button>
+              <label style={{ ...styles.btnGhost, display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Import Data (ZIP)
+                <input type="file" accept=".zip" style={{ display: "none" }} onChange={async (e) => {
+                  const file = e.target.files[0];
+                  if (!file) return;
+                  if (!confirm('Import data from ' + file.name + '? This will add any new records without overwriting existing data.')) { e.target.value = ''; return; }
+                  try {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    const res = await fetch(API_BASE + 'import.php', {
+                      method: 'POST',
+                      headers: { 'Authorization': 'Bearer ' + token },
+                      body: formData
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Import failed');
+                    let summary = 'Import complete:\n';
+                    Object.entries(data.results).forEach(([table, info]) => {
+                      if (typeof info === 'string') summary += table + ': ' + info + '\n';
+                      else summary += table + ': ' + info.imported + ' imported, ' + info.skipped + ' skipped\n';
+                    });
+                    alert(summary);
+                  } catch (err) { alert('Import failed: ' + err.message); }
+                  e.target.value = '';
+                }} />
+              </label>
+            </div>
+            <p style={{ fontSize: "12px", color: "#94a3b8", marginTop: "12px" }}>
+              Export downloads a ZIP of CSV files. Import accepts the same format — existing records are skipped, only new data is added.
+            </p>
+          </div>
         </div>
       );
     }
@@ -4871,7 +4938,7 @@
             <ErrorBanner message={error} onDismiss={() => setError("")} />
 
             {teacherPage === "dashboard" && (
-              <TeacherDashboard students={students} assignments={assignments} progress={progress} />
+              <TeacherDashboard students={students} assignments={assignments} progress={progress} token={token} />
             )}
             {teacherPage === "students" && (
               <TeacherStudents
