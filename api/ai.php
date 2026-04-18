@@ -255,14 +255,15 @@ Respond with a JSON object:
         }
 
         $originalJson = json_encode($original, JSON_PRETTY_PRINT);
-        $prompt = 'A piano teacher imported a YouTube video and the AI guessed these details:
+        $context = $youtubeTitle ? 'YouTube video: "' . $youtubeTitle . '"' . ($youtubeAuthor ? ' by ' . $youtubeAuthor : '') : 'Content from the library';
+        $prompt = 'A piano teacher has a content entry in their library and wants to correct the details.
 
-YouTube video: "' . $youtubeTitle . '" by ' . $youtubeAuthor . '
+' . $context . '
 
-Current AI-generated content entry:
+Current content entry:
 ' . $originalJson . '
 
-The teacher says this is wrong and provides this correction in shorthand:
+The teacher provides this correction in shorthand:
 "' . $correction . '"
 
 Rebuild the content entry incorporating the teacher corrections. The teacher knows best — if they say it is a ballad in Bb, trust that completely. Expand any shorthand naturally (e.g. "Bb" becomes "B flat major", "intermed" means suitable for intermediate players). Keep the description student-facing, 2-3 sentences.

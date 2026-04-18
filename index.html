@@ -4983,6 +4983,8 @@
       const [error, setError] = useState("");
       const [editingId, setEditingId] = useState(null);
       const [editForm, setEditForm] = useState({});
+      const [refineCorrection, setRefineCorrection] = useState("");
+      const [refining, setRefining] = useState(false);
       const [pickerContentId, setPickerContentId] = useState(null);
 
       const filtered = filter === "All" ? contentLibrary : contentLibrary.filter(c => c.track === filter);
@@ -5081,6 +5083,33 @@
                       <textarea value={editForm.description || ""} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} placeholder="Description" rows={4} style={{ ...styles.input, fontSize: "13px", lineHeight: 1.5, resize: "vertical" }} />
                       <input value={editForm.url || ""} onChange={e => setEditForm(f => ({ ...f, url: e.target.value }))} placeholder="URL (optional)" style={{ ...styles.input, fontSize: "13px" }} />
                       {editForm.pdf_url && <div style={{ fontSize: "12px", color: "#10b981", display: "flex", alignItems: "center", gap: "4px" }}><Icons.Check /> PDF attached</div>}
+                      {/* AI Correction */}
+                      <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                        <input style={{ ...styles.input, flex: 1, fontSize: "12px" }}
+                          value={refineCorrection} onChange={e => setRefineCorrection(e.target.value)}
+                          placeholder="Correct with AI: e.g. 'ballad, Bb major, intermediate'"
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' && refineCorrection.trim()) {
+                              e.preventDefault();
+                              setRefining(true);
+                              aiCall('youtube_refine', { original: editForm, correction: refineCorrection, youtubeTitle: content.title, youtubeAuthor: '' }, token)
+                                .then(data => { if (data.content) { setEditForm(f => ({ ...f, ...data.content })); setRefineCorrection(""); } })
+                                .catch(err => setError(err.message))
+                                .finally(() => setRefining(false));
+                            }
+                          }} />
+                        <button style={{ ...aiButtonStyle, padding: "6px 12px", fontSize: "11px", opacity: refining ? 0.6 : 1, whiteSpace: "nowrap" }}
+                          disabled={refining || !refineCorrection.trim()}
+                          onClick={() => {
+                            setRefining(true);
+                            aiCall('youtube_refine', { original: editForm, correction: refineCorrection, youtubeTitle: content.title, youtubeAuthor: '' }, token)
+                              .then(data => { if (data.content) { setEditForm(f => ({ ...f, ...data.content })); setRefineCorrection(""); } })
+                              .catch(err => setError(err.message))
+                              .finally(() => setRefining(false));
+                          }}>
+                          <AIIcons.Sparkle /> {refining ? "Refining..." : "AI Refine"}
+                        </button>
+                      </div>
                       <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
                         <button onClick={() => setEditingId(null)} style={styles.btnGhost}>Cancel</button>
                         <button onClick={() => handleUpdateContent(content.id, editForm)} style={styles.btnPrimary}>
@@ -5102,7 +5131,7 @@
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: "4px" }}>
-                      <button style={{ ...styles.btnGhost, padding: "6px" }} onClick={() => { setEditingId(content.id); setEditForm({ title: content.title, description: content.description || "", type: content.type, track: content.track, url: content.url || "", pdf_url: content.pdf_url || "" }); }} title="Edit"><Icons.Edit /></button>
+                      <button style={{ ...styles.btnGhost, padding: "6px" }} onClick={() => { setEditingId(content.id); setEditForm({ title: content.title, description: content.description || "", type: content.type, track: content.track, url: content.url || "", pdf_url: content.pdf_url || "" }); setRefineCorrection(""); }} title="Edit"><Icons.Edit /></button>
                       <button style={styles.btnDanger} onClick={() => handleRemoveContent(content.id)}><Icons.Trash /></button>
                     </div>
                   </div>
