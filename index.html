@@ -1809,38 +1809,129 @@
     // PLAYABLE KEYBOARD (Web Audio API)
     // ============================================================
 
+    // ── Salamander Grand Piano sample playback ──
     const audioCtxRef = { current: null };
     function getAudioCtx() {
       if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
       return audioCtxRef.current;
     }
 
+    // Salamander Grand Piano samples (Tone.js CDN) — sampled every 3 semitones
+    const SALAMANDER_CDN = 'https://tonejs.github.io/audio/salamander/';
+    const SAMPLE_NOTE_NAMES = ['C', 'Ds', 'Fs', 'A']; // every minor 3rd
+    const sampleBuffers = {}; // cache: "A4" -> AudioBuffer
+    let samplesLoading = false;
+    let samplesReady = false;
+
+    // Map MIDI note to nearest sample name and cents detune
+    function midiToSampleInfo(midi) {
+      const noteNames = ['C', 'Cs', 'D', 'Ds', 'E', 'F', 'Fs', 'G', 'Gs', 'A', 'As', 'B'];
+      const sampleMidiNotes = []; // [{midi, name}]
+      // Build list of all sampled notes (every 3 semitones: C, Ds, Fs, A in each octave)
+      for (let oct = 0; oct <= 8; oct++) {
+        for (const sn of SAMPLE_NOTE_NAMES) {
+          const idx = ['C','Cs','D','Ds','E','F','Fs','G','Gs','A','As','B'].indexOf(sn);
+          const m = (oct + 1) * 12 + idx; // MIDI: C0=12, C1=24, etc. (Tone.js uses C1=C1)
+          if (m >= 21 && m <= 108) sampleMidiNotes.push({ midi: m, name: sn + oct });
+        }
+      }
+      // Find closest sample
+      let best = sampleMidiNotes[0];
+      let bestDist = Math.abs(midi - best.midi);
+      for (const s of sampleMidiNotes) {
+        const d = Math.abs(midi - s.midi);
+        if (d < bestDist) { best = s; bestDist = d; }
+      }
+      return { name: best.name, detune: (midi - best.midi) * 100 }; // detune in cents
+    }
+
+    // Preload samples for a range of MIDI notes
+    async function preloadSamples(midiLow, midiHigh) {
+      const ctx = getAudioCtx();
+      const needed = new Set();
+      for (let m = midiLow; m <= midiHigh; m++) {
+        needed.add(midiToSampleInfo(m).name);
+      }
+      const promises = [];
+      for (const name of needed) {
+        if (sampleBuffers[name]) continue;
+        const url = SALAMANDER_CDN + name.replace('s', 's') + '.mp3';
+        // Salamander uses: A0.mp3, C1.mp3, Ds1.mp3, Fs1.mp3 etc.
+        promises.push(
+          fetch(url).then(r => r.arrayBuffer()).then(buf => ctx.decodeAudioData(buf)).then(decoded => {
+            sampleBuffers[name] = decoded;
+          }).catch(() => { /* sample not available, will use synth fallback */ })
+        );
+      }
+      if (promises.length > 0) await Promise.all(promises);
+      samplesReady = Object.keys(sampleBuffers).length > 0;
+    }
+
+    // Start preloading common range on first interaction
+    let preloadStarted = false;
+    function ensurePreload() {
+      if (preloadStarted) return;
+      preloadStarted = true;
+      // Preload octaves 2-6 (MIDI 48-84) which covers the playable keyboard range
+      preloadSamples(36, 96).then(() => { samplesReady = true; });
+    }
+
     function playNote(midiNote, duration = 0.6) {
       const ctx = getAudioCtx();
-      const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
+      ensurePreload();
       const now = ctx.currentTime;
 
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(freq, now);
-      gain.gain.setValueAtTime(0.35, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + duration);
+      const info = midiToSampleInfo(midiNote);
+      const buffer = sampleBuffers[info.name];
+
+      if (buffer) {
+        // Play real piano sample
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.detune.value = info.detune;
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.8, now);
+        // Natural decay — let the sample ring then fade
+        const fadeStart = Math.max(duration * 0.7, 0.3);
+        gain.gain.setValueAtTime(0.8, now + fadeStart);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration + 1.5);
+        source.connect(gain);
+        gain.connect(ctx.destination);
+        source.start(now);
+        source.stop(now + duration + 2);
+      } else {
+        // Fallback: triangle wave synth while samples load
+        const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(freq, now);
+        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + duration);
+      }
     }
 
     function PlayableKeyboard({ onBack }) {
       const [activeKeys, setActiveKeys] = useState(new Set());
       const [octave, setOctave] = useState(4);
+      const [samplesLoaded, setSamplesLoaded] = useState(samplesReady);
       const numOctaves = 2;
 
+      // Preload samples for current octave range
+      useEffect(() => {
+        const low = octave * 12;
+        const high = low + (numOctaves + 1) * 12;
+        preloadSamples(low, high).then(() => setSamplesLoaded(true));
+      }, [octave]);
+
       const handleKeyDown = (midiNote) => {
-        playNote(midiNote);
+        playNote(midiNote, 1.5);
         setActiveKeys(prev => new Set([...prev, midiNote]));
-        setTimeout(() => setActiveKeys(prev => { const n = new Set(prev); n.delete(midiNote); return n; }), 300);
+        setTimeout(() => setActiveKeys(prev => { const n = new Set(prev); n.delete(midiNote); return n; }), 400);
       };
 
       // Keyboard shortcut mapping (bottom row = lower octave, middle row = upper)
@@ -1930,6 +2021,9 @@
 
             <p style={{ textAlign: "center", fontSize: "13px", color: "#94a3b8", marginTop: "12px" }}>
               Tap keys or use your computer keyboard (A-L for notes, W/E/T/Y/U/O/P for sharps/flats)
+            </p>
+            <p style={{ textAlign: "center", fontSize: "11px", color: samplesLoaded ? "#5a9a7a" : "#d97706", marginTop: "4px" }}>
+              {samplesLoaded ? "♪ Salamander Grand Piano samples loaded" : "Loading piano samples..."}
             </p>
           </div>
         </div>
