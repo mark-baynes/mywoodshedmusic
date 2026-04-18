@@ -442,6 +442,84 @@ Return ONLY a JSON object: {"enharmonic_map": {... the corrected map ...}}';
         jsonResponse($parsed ?: ['error' => 'AI returned invalid JSON']);
         break;
 
+    // ─── Generate cover art image for content ───
+    case 'generate_cover_art':
+        $title = trim($body['title'] ?? '');
+        $track = trim($body['track'] ?? 'Jazz');
+        $type = trim($body['type'] ?? 'Practice');
+        $contentId = trim($body['content_id'] ?? '');
+        if (!$title) jsonResponse(['error' => 'Title required'], 400);
+
+        // Step 1: Ask AI for an image prompt based on the music title
+        $promptRequest = "Generate a short, vivid image description for album/cover art for a piano piece called \"$title\" (genre: $track, type: $type). The image should be atmospheric and musical — think abstract art, instruments, moody lighting, sheet music motifs. Do NOT include any text or words in the image. Keep the description under 80 words. Respond with just the image description, no JSON.";
+
+        $imagePrompt = callClaude($MUSIC_SYSTEM, $promptRequest, 256);
+        $imagePrompt = trim($imagePrompt, '"\' ');
+
+        // Step 2: Generate image using MiniMax Image API
+        $apiKey = defined('MINIMAX_API_KEY') ? MINIMAX_API_KEY : '';
+        if (!$apiKey) jsonResponse(['error' => 'API key not configured'], 500);
+
+        $imgPayload = [
+            'model' => 'image-01',
+            'prompt' => $imagePrompt . ' Beautiful, artistic, no text, no words, no letters.',
+            'aspect_ratio' => '1:1',
+            'response_format' => 'url',
+            'n' => 1
+        ];
+
+        $ch = curl_init('https://api.minimax.io/v1/image/generation');
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $apiKey
+            ],
+            CURLOPT_POSTFIELDS => json_encode($imgPayload),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 60
+        ]);
+
+        $imgResponse = curl_exec($ch);
+        $imgHttpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        $imgResult = json_decode($imgResponse, true);
+
+        // Extract image URL from response
+        $imageUrl = $imgResult['data'][0]['url'] ?? ($imgResult['data']['image_urls'][0] ?? null);
+
+        if (!$imageUrl) {
+            // If MiniMax image API fails, try returning the prompt for manual use
+            jsonResponse(['error' => 'Image generation failed', 'prompt' => $imagePrompt, 'debug' => $imgResult], 500);
+        }
+
+        // Step 3: Download and save the image locally
+        $uploadDir = __DIR__ . '/../uploads/covers/';
+        if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+
+        $imgData = file_get_contents($imageUrl);
+        if ($imgData) {
+            $filename = bin2hex(random_bytes(12)) . '.png';
+            file_put_contents($uploadDir . $filename, $imgData);
+            $localUrl = 'uploads/covers/' . $filename;
+
+            // Step 4: Save to content record if content_id provided
+            if ($contentId) {
+                $db = getDB();
+                // Auto-migrate cover_image_url column
+                try { $db->exec('ALTER TABLE content ADD COLUMN cover_image_url VARCHAR(500) DEFAULT NULL'); } catch (PDOException $e) {}
+                $stmt = $db->prepare('UPDATE content SET cover_image_url = ? WHERE id = ? AND teacher_id = ?');
+                $stmt->execute([$localUrl, $contentId, $teacherId]);
+            }
+
+            jsonResponse(['cover_url' => $localUrl, 'prompt' => $imagePrompt]);
+        } else {
+            // Can't download, return the remote URL
+            jsonResponse(['cover_url' => $imageUrl, 'prompt' => $imagePrompt, 'remote' => true]);
+        }
+        break;
+
     default:
-        jsonResponse(['error' => 'Invalid action. Use: generate_content, expand_shorthand, expand_observation, youtube_import, youtube_bulk_import, build_path, bulk_generate, generate_lesson, fix_enharmonics'], 400);
+        jsonResponse(['error' => 'Invalid action. Use: generate_content, expand_shorthand, expand_observation, youtube_import, youtube_bulk_import, build_path, bulk_generate, generate_lesson, fix_enharmonics, generate_cover_art'], 400);
 }
