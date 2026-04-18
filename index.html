@@ -2437,7 +2437,7 @@
       ];
 
       const [progCategory, setProgCategory] = useState("all");
-      const [progSpeed, setProgSpeed] = useState(700); // ms between chords
+      const [progSpeed, setProgSpeed] = useState(2000); // ms between chords (2 beats)
       const [progBass, setProgBass] = useState(true); // play bass root note
 
       const playProgression = (chordNames, rootMidi, speed) => {
@@ -2542,11 +2542,11 @@
               <div className="student-card" style={{ ...styles.card, padding: "16px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
                   <label style={{ fontSize: "13px", fontWeight: 600, color: "#64748b", minWidth: "50px" }}>Speed</label>
-                  <input type="range" min="400" max="1800" step="100" value={progSpeed}
+                  <input type="range" min="800" max="4000" step="200" value={progSpeed}
                     onChange={e => setProgSpeed(parseInt(e.target.value))}
                     style={{ flex: 1, accentColor: "#f59e0b" }} />
                   <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "12px", color: "#94a3b8", minWidth: "55px", textAlign: "right" }}>
-                    {progSpeed < 600 ? "Fast" : progSpeed < 900 ? "Medium" : progSpeed < 1300 ? "Slow" : "Very Slow"}
+                    {progSpeed < 1200 ? "Fast" : progSpeed < 2000 ? "Medium" : progSpeed < 3000 ? "Slow" : "Very Slow"}
                   </span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
