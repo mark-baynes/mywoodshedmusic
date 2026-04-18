@@ -1135,38 +1135,111 @@
 
       const ts = TIME_SIGNATURES.find(t => t.label === timeSig) || TIME_SIGNATURES[0];
 
+      // Drum synthesis functions
+      const playKick = useCallback((ctx) => {
+        const now = ctx.currentTime;
+        // Body (sine sweep from 150Hz down to 40Hz)
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.exponentialRampToValueAtTime(40, now + 0.12);
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.7, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        // Click transient
+        const click = ctx.createOscillator();
+        click.type = 'triangle';
+        click.frequency.setValueAtTime(800, now);
+        const clickGain = ctx.createGain();
+        clickGain.gain.setValueAtTime(0.3, now);
+        clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.015);
+        osc.connect(gain); gain.connect(ctx.destination);
+        click.connect(clickGain); clickGain.connect(ctx.destination);
+        osc.start(now); osc.stop(now + 0.35);
+        click.start(now); click.stop(now + 0.02);
+      }, []);
+
+      const playHiHat = useCallback((ctx, open) => {
+        const now = ctx.currentTime;
+        const dur = open ? 0.15 : 0.05;
+        // Noise via oscillator bank (high frequencies)
+        const bandpass = ctx.createBiquadFilter();
+        bandpass.type = 'bandpass';
+        bandpass.frequency.value = 10000;
+        bandpass.Q.value = 1;
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(open ? 0.18 : 0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+        // Use multiple detuned square waves for metallic noise
+        const freqs = [1047, 1109, 1175, 1319, 1397, 1480];
+        const oscs = freqs.map(f => {
+          const o = ctx.createOscillator();
+          o.type = 'square';
+          o.frequency.value = f;
+          o.connect(bandpass);
+          return o;
+        });
+        const highpass = ctx.createBiquadFilter();
+        highpass.type = 'highpass';
+        highpass.frequency.value = 7000;
+        bandpass.connect(highpass);
+        highpass.connect(gain);
+        gain.connect(ctx.destination);
+        oscs.forEach(o => { o.start(now); o.stop(now + dur + 0.02); });
+      }, []);
+
+      const playCrossStick = useCallback((ctx) => {
+        const now = ctx.currentTime;
+        // Short bright click
+        const osc = ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(1800, now);
+        osc.frequency.exponentialRampToValueAtTime(300, now + 0.015);
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = 1500;
+        filter.Q.value = 3;
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now); osc.stop(now + 0.08);
+      }, []);
+
+      const playClave = useCallback((ctx) => {
+        const now = ctx.currentTime;
+        // Woodblock — bright resonant click
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(900, now);
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+        const osc2 = ctx.createOscillator();
+        osc2.type = 'triangle';
+        osc2.frequency.setValueAtTime(1300, now);
+        const gain2 = ctx.createGain();
+        gain2.gain.setValueAtTime(0.15, now);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc2.connect(gain2); gain2.connect(ctx.destination);
+        osc.start(now); osc.stop(now + 0.08);
+        osc2.start(now); osc2.stop(now + 0.06);
+      }, []);
+
       const playClick = useCallback((isDownbeat, isClave) => {
         if (!audioCtxRef.current) return;
         const ctx = audioCtxRef.current;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
         if (isClave) {
-          // Woodblock-like sound for clave
-          osc.type = 'triangle';
-          osc.frequency.value = 900;
-          gain.gain.setValueAtTime(0.4, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06);
-          osc.start(ctx.currentTime);
-          osc.stop(ctx.currentTime + 0.06);
+          playClave(ctx);
         } else if (isDownbeat) {
-          osc.type = 'sine';
-          osc.frequency.value = 1000;
-          gain.gain.setValueAtTime(0.3, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
-          osc.start(ctx.currentTime);
-          osc.stop(ctx.currentTime + 0.08);
+          playKick(ctx);
         } else {
-          osc.type = 'sine';
-          osc.frequency.value = 700;
-          gain.gain.setValueAtTime(0.15, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06);
-          osc.start(ctx.currentTime);
-          osc.stop(ctx.currentTime + 0.06);
+          playHiHat(ctx, false);
         }
-      }, []);
+      }, [playKick, playHiHat, playClave]);
 
       const startMetronome = useCallback(() => {
         if (audioCtxRef.current) audioCtxRef.current.close();
@@ -1191,9 +1264,19 @@
           const claveHit = claveArr && sub < claveArr.length && claveArr[sub] === 1;
 
           if (claveHit) {
-            playClick(false, true);
+            playClave(ctx);
+          }
+          // Drum pattern: kick on 1, cross-stick on 2/4, hi-hat on all beats + &'s
+          if (isDownbeat) {
+            playKick(ctx);
+          } else if (isOnBeat && (beat === 1 || beat === 3) && ts.beats >= 4) {
+            playCrossStick(ctx);
           } else if (isOnBeat) {
-            playClick(isDownbeat, false);
+            playHiHat(ctx, false);
+          }
+          // Hi-hat on 8th notes (every 2 subdivisions)
+          if (!isOnBeat && sub % 2 === 0) {
+            playHiHat(ctx, false);
           }
 
           setCurrentBeat(beat);
@@ -1968,6 +2051,63 @@
       delete activeNotes[midiNote];
     }
 
+    // Bass synth — warm upright bass sound (sine + sub-octave + gentle attack)
+    function playBassNote(midiNote, duration = 1.5) {
+      const ctx = getAudioCtx();
+      const now = ctx.currentTime;
+      const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
+
+      // Main tone (sine for warmth)
+      const osc1 = ctx.createOscillator();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(freq, now);
+
+      // Sub-octave for depth
+      const osc2 = ctx.createOscillator();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(freq / 2, now);
+
+      // Slight harmonic for definition
+      const osc3 = ctx.createOscillator();
+      osc3.type = 'triangle';
+      osc3.frequency.setValueAtTime(freq * 2, now);
+
+      // Gain for each
+      const gain1 = ctx.createGain();
+      const gain2 = ctx.createGain();
+      const gain3 = ctx.createGain();
+
+      // Gentle attack, warm sustain, smooth release
+      gain1.gain.setValueAtTime(0, now);
+      gain1.gain.linearRampToValueAtTime(0.35, now + 0.02);
+      gain1.gain.setValueAtTime(0.35, now + duration * 0.6);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+      gain2.gain.setValueAtTime(0, now);
+      gain2.gain.linearRampToValueAtTime(0.15, now + 0.02);
+      gain2.gain.setValueAtTime(0.15, now + duration * 0.6);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+      gain3.gain.setValueAtTime(0, now);
+      gain3.gain.linearRampToValueAtTime(0.06, now + 0.01);
+      gain3.gain.exponentialRampToValueAtTime(0.001, now + 0.15); // harmonic dies fast
+
+      // Low-pass filter for warmth
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(800, now);
+      filter.Q.setValueAtTime(1, now);
+
+      osc1.connect(gain1); gain1.connect(filter);
+      osc2.connect(gain2); gain2.connect(filter);
+      osc3.connect(gain3); gain3.connect(filter);
+      filter.connect(ctx.destination);
+
+      osc1.start(now); osc1.stop(now + duration + 0.1);
+      osc2.start(now); osc2.stop(now + duration + 0.1);
+      osc3.start(now); osc3.stop(now + duration + 0.1);
+    }
+
     function PlayableKeyboard({ onBack }) {
       const [activeKeys, setActiveKeys] = useState(new Set());
       const [octave, setOctave] = useState(4);
@@ -2238,9 +2378,9 @@
       };
 
       const playChord = (intervals, rootMidi) => {
-        intervals.forEach(i => playNote(rootMidi + i, 1.0));
-        // Bass root note 2 octaves below
-        if (progBass) playNote(rootMidi - 24, 1.0);
+        intervals.forEach(i => playNote(rootMidi + i, 2.0));
+        // Bass root — warm synth bass 2 octaves below
+        playBassNote(rootMidi - 24, 2.0);
       };
 
       const newIntervalQuestion = () => {
@@ -2310,9 +2450,9 @@
           setTimeout(() => {
             // Piano voicing
             chord.intervals.forEach(interval => playNote(chordRoot + interval, dur));
-            // Bass root note — 2 octaves below chord root
+            // Bass root — warm synth bass 2 octaves below
             if (progBass) {
-              playNote(chordRoot - 24, dur);
+              playBassNote(chordRoot - 24, dur);
             }
           }, i * gap);
         });
@@ -4960,8 +5100,14 @@
               />
             ) : (
               <div className="student-container" style={styles.container}>
-                <h2 style={{ ...styles.pageTitle, fontSize: "22px" }}>My Learning Profile</h2>
-                <p style={{ fontSize: "14px", color: "#64748b", marginBottom: "20px" }}>Help your teacher understand how you learn best</p>
+                <h2 style={{ ...styles.pageTitle, fontSize: "22px" }}>My Profile</h2>
+
+                <div className="student-card" style={{ ...styles.card, marginBottom: "20px" }}>
+                  <ProfileEditor token={token} isStudent={true} />
+                </div>
+
+                <h3 style={{ fontSize: "18px", fontWeight: 600, color: "#1e293b", marginBottom: "8px" }}>Learning Preferences</h3>
+                <p style={{ fontSize: "14px", color: "#64748b", marginBottom: "12px" }}>Help your teacher understand how you learn best</p>
                 <div style={styles.card}>
                   <StudentPreferencesForm studentId={studentId} token={token} />
                 </div>
@@ -5236,6 +5382,183 @@
     // ============================================================
     // TOOLBOX EDITOR (teacher can edit enharmonics, scales, chords)
     // ============================================================
+
+    // ============================================================
+    // PROFILE EDITOR
+    // ============================================================
+
+    function ProfileEditor({ token, isStudent, onClose }) {
+      const [profile, setProfile] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [saving, setSaving] = useState(false);
+      const [saved, setSaved] = useState(false);
+      const [name, setName] = useState('');
+      const [email, setEmail] = useState('');
+      const [phone, setPhone] = useState('');
+      const [photoUrl, setPhotoUrl] = useState('');
+      const [visibleFields, setVisibleFields] = useState([]);
+      const [uploading, setUploading] = useState(false);
+      const [teacherProfile, setTeacherProfile] = useState(null);
+
+      useEffect(() => {
+        (async () => {
+          try {
+            const data = await apiFetch('profile.php', {}, token);
+            setProfile(data);
+            setName(data.name || '');
+            setEmail(data.email || '');
+            setPhone(data.phone || '');
+            setPhotoUrl(data.photo_url || '');
+            if (data.visible_fields) {
+              setVisibleFields(data.visible_fields.split(',').map(f => f.trim()));
+            }
+            // Student: also load teacher's visible profile
+            if (isStudent) {
+              try {
+                const tp = await apiFetch('profile.php?teacher=1', {}, token);
+                setTeacherProfile(tp);
+              } catch(e) {}
+            }
+          } catch (e) { console.error('Profile load error:', e); }
+          setLoading(false);
+        })();
+      }, []);
+
+      const handleSave = async () => {
+        setSaving(true);
+        try {
+          const body = { name, email, phone };
+          if (!isStudent) {
+            body.visible_fields = visibleFields.join(',');
+          }
+          await apiFetch('profile.php', {
+            method: 'PUT',
+            body: JSON.stringify(body),
+          }, token);
+          setSaved(true);
+          setTimeout(() => setSaved(false), 2000);
+        } catch (err) {
+          alert('Save failed: ' + err.message);
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      const handlePhotoUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setUploading(true);
+        try {
+          const formData = new FormData();
+          formData.append('photo', file);
+          const resp = await fetch(API_BASE + 'profile.php', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token },
+            body: formData,
+          });
+          const data = await resp.json();
+          if (data.photo_url) setPhotoUrl(data.photo_url);
+          else if (data.error) alert(data.error);
+        } catch (err) {
+          alert('Upload failed: ' + err.message);
+        } finally {
+          setUploading(false);
+        }
+      };
+
+      const toggleVisible = (field) => {
+        setVisibleFields(prev =>
+          prev.includes(field) ? prev.filter(f => f !== field) : [...prev, field]
+        );
+      };
+
+      const photoSrc = photoUrl ? (photoUrl.startsWith('http') ? photoUrl : API_BASE.replace('api/', '') + photoUrl) : null;
+
+      if (loading) return <Loading message="Loading profile..." />;
+
+      return (
+        <div style={{ maxWidth: "500px", margin: "0 auto" }}>
+          {/* Photo */}
+          <div style={{ textAlign: "center", marginBottom: "24px" }}>
+            <div style={{
+              width: "100px", height: "100px", borderRadius: "50%", margin: "0 auto 12px",
+              background: photoSrc ? `url(${photoSrc}) center/cover` : "linear-gradient(135deg, #d97706, #f59e0b)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: "36px", color: "#fff", fontWeight: 700,
+              border: "3px solid rgba(217,119,6,0.3)",
+            }}>
+              {!photoSrc && (name || 'U').charAt(0).toUpperCase()}
+            </div>
+            <label style={{
+              fontSize: "13px", color: "#d97706", cursor: "pointer", fontWeight: 500,
+            }}>
+              {uploading ? "Uploading..." : "Change Photo"}
+              <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: "none" }} />
+            </label>
+          </div>
+
+          {/* Fields */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div>
+              <label style={styles.label}>Name</label>
+              <input type="text" value={name} onChange={e => setName(e.target.value)}
+                style={{ ...styles.input, width: "100%", boxSizing: "border-box" }} />
+            </div>
+            <div>
+              <label style={styles.label}>Email</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                style={{ ...styles.input, width: "100%", boxSizing: "border-box" }} />
+            </div>
+            <div>
+              <label style={styles.label}>Phone</label>
+              <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
+                placeholder="Optional"
+                style={{ ...styles.input, width: "100%", boxSizing: "border-box" }} />
+            </div>
+
+            {/* Teacher: visibility controls */}
+            {!isStudent && (
+              <div>
+                <label style={styles.label}>Visible to Students</label>
+                <p style={{ fontSize: "12px", color: "#94a3b8", margin: "0 0 8px" }}>Choose which details your students can see</p>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  {[{key: 'name', label: 'Name'}, {key: 'email', label: 'Email'}, {key: 'phone', label: 'Phone'}, {key: 'photo', label: 'Photo'}].map(f => (
+                    <button key={f.key} onClick={() => toggleVisible(f.key)} style={{
+                      padding: "8px 16px", borderRadius: "8px", border: "none", cursor: "pointer",
+                      fontSize: "13px", fontWeight: 500,
+                      background: visibleFields.includes(f.key) ? "rgba(90,154,122,0.2)" : "rgba(0,0,0,0.04)",
+                      color: visibleFields.includes(f.key) ? "#2d6a4f" : "#94a3b8",
+                    }}>{f.label}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Student: teacher info */}
+            {isStudent && teacherProfile && (
+              <div style={{ ...styles.card, background: "rgba(217,119,6,0.05)", marginTop: "8px" }}>
+                <label style={{ ...styles.label, marginBottom: "8px" }}>My Teacher</label>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  {teacherProfile.photo_url && (
+                    <img src={teacherProfile.photo_url.startsWith('http') ? teacherProfile.photo_url : API_BASE.replace('api/', '') + teacherProfile.photo_url}
+                      style={{ width: "48px", height: "48px", borderRadius: "50%", objectFit: "cover" }} />
+                  )}
+                  <div>
+                    {teacherProfile.name && <div style={{ fontWeight: 600, color: "#1e293b" }}>{teacherProfile.name}</div>}
+                    {teacherProfile.email && <div style={{ fontSize: "13px", color: "#64748b" }}>{teacherProfile.email}</div>}
+                    {teacherProfile.phone && <div style={{ fontSize: "13px", color: "#64748b" }}>{teacherProfile.phone}</div>}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <button onClick={handleSave} disabled={saving} style={{ ...styles.btnPrimary, marginTop: "8px" }}>
+              {saving ? "Saving..." : saved ? "Saved!" : "Save Profile"}
+            </button>
+          </div>
+        </div>
+      );
+    }
 
     function ToolboxEditor({ token }) {
       const [editMap, setEditMap] = useState(() => JSON.parse(JSON.stringify(ENHARMONIC_MAP)));
@@ -5927,6 +6250,10 @@
                   </select>
                 </div>
               )}
+              <button onClick={() => setTeacherPage("profile")} style={{ ...styles.switchBtn, display: "flex", alignItems: "center", gap: "6px", marginLeft: "8px" }} title="My Profile">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Profile
+              </button>
               <button onClick={handleLogout} style={{ ...styles.switchBtn, display: "flex", alignItems: "center", gap: "6px", marginLeft: "8px" }} title="Sign out">
                 <Icons.Logout /> Sign Out
               </button>
@@ -5935,6 +6262,16 @@
 
           <div style={styles.container}>
             <ErrorBanner message={error} onDismiss={() => setError("")} />
+
+            {teacherPage === "profile" && (
+              <div>
+                <h2 style={styles.pageTitle}>My Profile</h2>
+                <p style={styles.pageSubtitle}>Update your details and control what students can see</p>
+                <div style={styles.card}>
+                  <ProfileEditor token={token} isStudent={false} />
+                </div>
+              </div>
+            )}
 
             {teacherPage === "dashboard" && (
               <TeacherDashboard students={students} assignments={assignments} progress={progress} token={token} />
