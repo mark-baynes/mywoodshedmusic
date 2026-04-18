@@ -495,6 +495,267 @@ Requirements:
         jsonResponse(['cover_url' => $localUrl]);
         break;
 
+    // ─── AI Recording Feedback ───
+    case 'recording_feedback':
+        $studentId = trim($body['student_id'] ?? '');
+        $contentTitle = trim($body['content_title'] ?? '');
+        $contentDescription = trim($body['content_description'] ?? '');
+        $contentType = trim($body['content_type'] ?? '');
+        $stepNotes = trim($body['step_notes'] ?? '');
+        $studentLevel = trim($body['student_level'] ?? '');
+        $selfAssessment = trim($body['self_assessment'] ?? '');
+
+        if (!$contentTitle) jsonResponse(['error' => 'content_title required'], 400);
+
+        $feedbackPrompt = "You are an AI practice coach for a piano student. The student just finished recording themselves practising. Generate helpful, specific feedback and listening guidance.
+
+Practice context:
+- Content: "$contentTitle"
+- Type: $contentType
+- Instructions: "$contentDescription"
+" . ($stepNotes ? "- Teacher notes for this step: "$stepNotes"
+" : "") . ($studentLevel ? "- Student level: $studentLevel
+" : "") . ($selfAssessment ? "- Student's self-assessment: "$selfAssessment"
+" : "") . "
+
+Since you cannot listen to the audio, provide:
+1. **Listening Guide** — 3-4 specific things the student should listen for when playing back their recording, tailored to this specific piece/exercise. Be very specific about what to focus on (e.g. "Listen to your left hand in bars where the chord changes — are the transitions smooth?").
+
+2. **Common Pitfalls** — 2-3 common issues students encounter with this type of material at this level, so they know what to watch for.
+
+3. **Practice Tips** — 2-3 targeted suggestions for how to improve based on the content type (e.g. for a jazz standard: work on swing feel; for scales: focus on evenness between hands).
+
+4. **Self-Check Questions** — 3 yes/no questions the student can answer honestly after listening to their recording (e.g. "Was my tempo steady throughout?" "Did I maintain consistent dynamics?").
+
+Keep the tone encouraging and constructive — like a supportive teacher. Use the student's practice context to make advice specific, not generic.
+
+Respond with a JSON object:
+{
+  "feedback_html": "the complete feedback as clean HTML (h3 for sections, ul/li for lists, p for paragraphs)",
+  "headline": "one encouraging line, e.g. 'Great work recording yourself — here\'s what to listen for'"
+}";
+
+        $result = callClaude($MUSIC_SYSTEM, $feedbackPrompt, 1536);
+        $parsed = json_decode($result, true);
+        if (!$parsed) {
+            preg_match('/\{.*\}/s', $result, $m);
+            $parsed = json_decode($m[0] ?? '{}', true);
+        }
+        jsonResponse(['feedback' => $parsed]);
+        break;
+
+    // ─── Smart practice suggestions for a student ───
+    case 'suggest_practice':
+        $studentId = trim($body['student_id'] ?? '');
+        if (!$studentId) jsonResponse(['error' => 'student_id required'], 400);
+
+        $db = getDB();
+
+        // Student info
+        $stmt = $db->prepare('SELECT name, level, notes FROM students WHERE id = ? AND teacher_id = ?');
+        $stmt->execute([$studentId, $teacherId]);
+        $student = $stmt->fetch();
+        if (!$student) jsonResponse(['error' => 'Student not found'], 404);
+
+        // All content library
+        $stmt = $db->prepare('SELECT id, title, type, track, description FROM content WHERE teacher_id = ? ORDER BY title');
+        $stmt->execute([$teacherId]);
+        $library = $stmt->fetchAll();
+
+        // What's already been assigned to this student
+        $stmt = $db->prepare('
+            SELECT ast.content_id, c.title, p.completed, p.feedback, p.practice_seconds
+            FROM assignments a
+            JOIN assignment_steps ast ON ast.assignment_id = a.id
+            JOIN content c ON c.id = ast.content_id
+            LEFT JOIN progress p ON p.assignment_id = a.id AND p.step_id = ast.id AND p.student_id = ?
+            WHERE a.student_id = ? AND a.teacher_id = ?
+            ORDER BY a.created_at DESC
+        ');
+        $stmt->execute([$studentId, $studentId, $teacherId]);
+        $assignedHistory = $stmt->fetchAll();
+
+        // Recent observations
+        $stmt = $db->prepare('SELECT note, created_at FROM teacher_observations WHERE student_id = ? AND teacher_id = ? ORDER BY created_at DESC LIMIT 10');
+        $stmt->execute([$studentId, $teacherId]);
+        $observations = $stmt->fetchAll();
+
+        // Learning preferences
+        $stmt = $db->prepare('SELECT preferences FROM learning_profiles WHERE student_id = ?');
+        $stmt->execute([$studentId]);
+        $lp = $stmt->fetch();
+        $preferences = $lp ? json_decode($lp['preferences'], true) : null;
+
+        $dataPayload = json_encode([
+            'student' => $student,
+            'content_library' => $library,
+            'assignment_history' => $assignedHistory,
+            'observations' => array_map(fn($o) => ['note' => $o['note'], 'date' => $o['created_at']], $observations),
+            'preferences' => $preferences,
+        ], JSON_PRETTY_PRINT);
+
+        $suggestPrompt = "You are an intelligent practice planning assistant for a piano teacher. Based on the student's profile, their assignment history, teacher observations, and the available content library, suggest what this student should work on next.
+
+Here is all the data:
+
+$dataPayload
+
+Analyse what the student has already covered, what they found easy vs difficult (from feedback), and what gaps exist. Then create a suggested practice assignment.
+
+Rules:
+- Prefer content from the existing library (use the content id)
+- You can suggest new content items too (mark source as "new")
+- Order steps in a pedagogically sound sequence (warm-up → new material → practice → review)
+- Include 4-7 steps
+- Consider the student's level and preferences
+- If they struggled with something (feedback like 'hard' or 'need_help'), include review of that material
+- If they found things easy ('easy', 'nailed_it'), progress to harder material
+- Don't repeatedly assign the same content unless it needs review
+
+Respond with a JSON object:
+{
+  "rationale": "2-3 sentences explaining why you chose this path",
+  "week_label": "a descriptive label for this week",
+  "steps": [
+    {
+      "source": "library" or "new",
+      "content_id": "id from library if source is library, null if new",
+      "title": "title of the content item",
+      "type": "Watch|Play|Practice|Listen|Review",
+      "track": "Jazz|Contemporary|Foundation|Crossover",
+      "notes": "step-specific notes for this student",
+      "new_description": "full description if this is a new content item, null if from library"
+    }
+  ]
+}";
+
+        $result = callClaude($MUSIC_SYSTEM, $suggestPrompt, 2048);
+        $parsed = json_decode($result, true);
+        if (!$parsed) {
+            preg_match('/\{.*\}/s', $result, $m);
+            $parsed = json_decode($m[0] ?? '{}', true);
+        }
+        jsonResponse(['suggestion' => $parsed]);
+        break;
+
+    // ─── AI Practice Summary for a student ───
+    case 'practice_summary':
+        $studentId = trim($body['student_id'] ?? '');
+        if (!$studentId) jsonResponse(['error' => 'student_id required'], 400);
+
+        $db = getDB();
+
+        // Gather student info
+        $stmt = $db->prepare('SELECT name, level, notes FROM students WHERE id = ? AND teacher_id = ?');
+        $stmt->execute([$studentId, $teacherId]);
+        $student = $stmt->fetch();
+        if (!$student) jsonResponse(['error' => 'Student not found'], 404);
+
+        // Recent assignments with steps
+        $stmt = $db->prepare('
+            SELECT a.id, a.week_label, a.created_at,
+                   GROUP_CONCAT(DISTINCT c.title ORDER BY ast.sort_order SEPARATOR " | ") AS step_titles
+            FROM assignments a
+            LEFT JOIN assignment_steps ast ON ast.assignment_id = a.id
+            LEFT JOIN content c ON c.id = ast.content_id
+            WHERE a.student_id = ? AND a.teacher_id = ?
+            ORDER BY a.created_at DESC LIMIT 8
+        ');
+        $stmt->execute([$studentId, $teacherId]);
+        $recentAssignments = $stmt->fetchAll();
+
+        // Progress with feedback + practice time
+        $stmt = $db->prepare('
+            SELECT p.assignment_id, p.step_id, p.completed, p.feedback, p.feedback_note,
+                   p.practice_seconds, p.completed_at, c.title AS content_title
+            FROM progress p
+            LEFT JOIN assignment_steps ast ON ast.id = p.step_id
+            LEFT JOIN content c ON c.id = ast.content_id
+            WHERE p.student_id = ?
+            ORDER BY p.completed_at DESC LIMIT 50
+        ');
+        $stmt->execute([$studentId]);
+        $recentProgress = $stmt->fetchAll();
+
+        // Teacher observations
+        $stmt = $db->prepare('SELECT note, created_at FROM teacher_observations WHERE student_id = ? AND teacher_id = ? ORDER BY created_at DESC LIMIT 15');
+        $stmt->execute([$studentId, $teacherId]);
+        $observations = $stmt->fetchAll();
+
+        // Learning preferences
+        $stmt = $db->prepare('SELECT preferences FROM learning_profiles WHERE student_id = ?');
+        $stmt->execute([$studentId]);
+        $learningProfile = $stmt->fetch();
+        $preferences = $learningProfile ? json_decode($learningProfile['preferences'], true) : null;
+
+        // Student check-ins (mood/confidence)
+        $stmt = $db->prepare('SELECT mood, confidence, note, created_at FROM student_checkins WHERE student_id = ? ORDER BY created_at DESC LIMIT 10');
+        $stmt->execute([$studentId]);
+        $checkins = $stmt->fetchAll();
+
+        // Build the data summary for the AI
+        $totalPracticeSeconds = array_sum(array_column($recentProgress, 'practice_seconds'));
+        $completedSteps = count(array_filter($recentProgress, fn($p) => $p['completed']));
+        $feedbackCounts = [];
+        foreach ($recentProgress as $p) {
+            if ($p['feedback']) $feedbackCounts[$p['feedback']] = ($feedbackCounts[$p['feedback']] ?? 0) + 1;
+        }
+
+        $dataPayload = json_encode([
+            'student' => $student,
+            'assignments' => $recentAssignments,
+            'progress_summary' => [
+                'total_practice_minutes' => round($totalPracticeSeconds / 60),
+                'completed_steps' => $completedSteps,
+                'feedback_breakdown' => $feedbackCounts,
+            ],
+            'recent_feedback' => array_map(fn($p) => [
+                'title' => $p['content_title'],
+                'feedback' => $p['feedback'],
+                'note' => $p['feedback_note'],
+                'practice_mins' => round(($p['practice_seconds'] ?? 0) / 60, 1),
+                'date' => $p['completed_at'],
+            ], array_slice(array_filter($recentProgress, fn($p) => $p['feedback']), 0, 20)),
+            'observations' => array_map(fn($o) => ['note' => $o['note'], 'date' => $o['created_at']], $observations),
+            'checkins' => $checkins,
+            'preferences' => $preferences,
+        ], JSON_PRETTY_PRINT);
+
+        $summaryPrompt = "You are generating a weekly AI practice summary for a piano teacher about one of their students. This summary helps the teacher quickly understand how their student is progressing and what to focus on in the next lesson.
+
+Here is all the available data about this student:
+
+$dataPayload
+
+Generate a concise, insightful practice summary with these sections:
+
+1. **Overview** (2-3 sentences) — Overall picture of how the student is doing this period. Mention practice time, completion rate, and general trajectory.
+
+2. **Strengths** (2-3 bullet points) — What's going well based on feedback, observations, and completion patterns.
+
+3. **Areas for Focus** (2-3 bullet points) — What needs attention. Be specific about which content items or skills show difficulty. Reference the student's self-reported feedback and teacher observations.
+
+4. **Mood & Engagement** (1-2 sentences) — If check-in data is available, note any patterns in confidence or mood. If not, skip this section.
+
+5. **Suggested Next Steps** (2-3 specific, actionable suggestions) — What the teacher should consider for the next lesson or assignment. Be practical and music-specific.
+
+Keep the tone professional but warm — you're a helpful teaching assistant, not a clinical report. Use the student's name. If data is sparse, acknowledge that and focus on what you can infer.
+
+Respond with a JSON object:
+{
+  \"summary_html\": \"the complete summary as clean HTML (use h3 for section titles, ul/li for lists, p for paragraphs)\",
+  \"headline\": \"one-line headline summarising the student's status, e.g. 'Solid progress on jazz voicings, needs work on rhythm'\"
+}";
+
+        $result = callClaude($MUSIC_SYSTEM, $summaryPrompt, 2048);
+        $parsed = json_decode($result, true);
+        if (!$parsed) {
+            preg_match('/\{.*\}/s', $result, $m);
+            $parsed = json_decode($m[0] ?? '{}', true);
+        }
+        jsonResponse(['summary' => $parsed]);
+        break;
+
     default:
-        jsonResponse(['error' => 'Invalid action. Use: generate_content, expand_shorthand, expand_observation, youtube_import, youtube_bulk_import, build_path, bulk_generate, generate_lesson, fix_enharmonics, generate_cover_art'], 400);
+        jsonResponse(['error' => 'Invalid action. Use: generate_content, expand_shorthand, expand_observation, youtube_import, youtube_bulk_import, build_path, bulk_generate, generate_lesson, fix_enharmonics, generate_cover_art, practice_summary'], 400);
 }

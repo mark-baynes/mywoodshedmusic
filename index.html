@@ -358,11 +358,15 @@
     // AUDIO RECORDER
     // ============================================================
 
-    function AudioRecorder({ stepId, assignmentId, studentId, token, existingUrl }) {
+    function AudioRecorder({ stepId, assignmentId, studentId, token, existingUrl, contentTitle, contentDescription, contentType, stepNotes, studentLevel }) {
       const [recording, setRecording] = useState(false);
       const [audioUrl, setAudioUrl] = useState(existingUrl || null);
       const [uploading, setUploading] = useState(false);
       const [error, setError] = useState("");
+      const [aiFeedback, setAiFeedback] = useState(null);
+      const [loadingFeedback, setLoadingFeedback] = useState(false);
+      const [selfAssessment, setSelfAssessment] = useState("");
+      const [showSelfAssess, setShowSelfAssess] = useState(false);
       const mediaRecorderRef = useRef(null);
       const chunksRef = useRef([]);
       const streamRef = useRef(null);
@@ -421,6 +425,27 @@
         }
       };
 
+      const getAIFeedback = async () => {
+        setLoadingFeedback(true);
+        try {
+          const data = await aiCall("recording_feedback", {
+            student_id: studentId,
+            content_title: contentTitle || "Practice recording",
+            content_description: contentDescription || "",
+            content_type: contentType || "",
+            step_notes: stepNotes || "",
+            student_level: studentLevel || "",
+            self_assessment: selfAssessment || "",
+          }, token);
+          setAiFeedback(data.feedback);
+          setShowSelfAssess(false);
+        } catch (err) {
+          setError("AI feedback failed: " + err.message);
+        } finally {
+          setLoadingFeedback(false);
+        }
+      };
+
       return (
         <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "6px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
@@ -450,7 +475,57 @@
             {audioUrl && !recording && !uploading && (
               <audio controls src={audioUrl} style={{ height: "32px", maxWidth: "220px" }} />
             )}
+            {audioUrl && !recording && !uploading && !aiFeedback && !loadingFeedback && (
+              <button onClick={() => setShowSelfAssess(!showSelfAssess)} style={{
+                display: "inline-flex", alignItems: "center", gap: "4px",
+                background: "linear-gradient(135deg, rgba(139,92,246,0.08), rgba(217,119,6,0.08))",
+                border: "1px solid rgba(139,92,246,0.2)", borderRadius: "6px", padding: "5px 10px",
+                cursor: "pointer", fontSize: "12px", color: "#7c3aed", fontWeight: 500
+              }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                AI Feedback
+              </button>
+            )}
+            {loadingFeedback && (
+              <span style={{ fontSize: "12px", color: "#7c3aed", animation: "pulse 1.5s infinite" }}>Getting AI feedback...</span>
+            )}
           </div>
+          {showSelfAssess && !aiFeedback && (
+            <div style={{ padding: "10px 12px", background: "rgba(139,92,246,0.04)", borderRadius: "8px", border: "1px solid rgba(139,92,246,0.1)" }}>
+              <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "6px" }}>Optional: How did it feel? (helps the AI give better feedback)</div>
+              <div style={{ display: "flex", gap: "6px" }}>
+                <input value={selfAssessment} onChange={e => setSelfAssessment(e.target.value)}
+                  placeholder="e.g. Rhythm felt off in the middle, not sure about the voicings..."
+                  style={{ flex: 1, padding: "6px 10px", borderRadius: "6px", border: "1px solid #e2e8f0", fontSize: "12px", fontFamily: "inherit" }} />
+                <button onClick={getAIFeedback} style={{
+                  background: "linear-gradient(135deg, #7c3aed, #8b5cf6)", border: "none", borderRadius: "6px",
+                  padding: "6px 14px", cursor: "pointer", fontSize: "12px", fontWeight: 600, color: "#fff"
+                }}>Get Feedback</button>
+              </div>
+            </div>
+          )}
+          {aiFeedback && (
+            <div style={{
+              padding: "12px", background: "linear-gradient(135deg, rgba(139,92,246,0.04), rgba(217,119,6,0.04))",
+              borderRadius: "8px", border: "1px solid rgba(139,92,246,0.12)"
+            }}>
+              {aiFeedback.headline && (
+                <div style={{ fontSize: "13px", fontWeight: 600, color: "#7c3aed", marginBottom: "8px" }}>{aiFeedback.headline}</div>
+              )}
+              {aiFeedback.feedback_html && (
+                <div className="ai-summary-content" style={{ fontSize: "12px", lineHeight: "1.5", color: "#334155" }}
+                  dangerouslySetInnerHTML={{ __html: aiFeedback.feedback_html }} />
+              )}
+              <div style={{ marginTop: "8px", display: "flex", gap: "8px" }}>
+                <button onClick={() => { setAiFeedback(null); setShowSelfAssess(false); }} style={{
+                  background: "none", border: "none", cursor: "pointer", fontSize: "11px", color: "#94a3b8"
+                }}>Dismiss</button>
+                <button onClick={() => { setAiFeedback(null); setShowSelfAssess(true); }} style={{
+                  background: "none", border: "none", cursor: "pointer", fontSize: "11px", color: "#7c3aed"
+                }}>Regenerate</button>
+              </div>
+            </div>
+          )}
           {error && <div style={{ fontSize: "12px", color: "#ef4444" }}>{error}</div>}
         </div>
       );
@@ -2330,6 +2405,49 @@
       const [countBeat, setCountBeat] = useState(0);
       const countInRef = useRef(null);
 
+      // Adaptive ear training — track per-item stats
+      const [earStats, setEarStats] = useState({});  // { "interval:Minor 3rd": { correct: 3, total: 5 }, ... }
+      const [showStats, setShowStats] = useState(false);
+
+      // Load ear training stats on mount
+      useEffect(() => {
+        const saved = sessionStorage.getItem('earTrainingStats');
+        if (saved) try { setEarStats(JSON.parse(saved)); } catch(e) {}
+      }, []);
+
+      // Save stats whenever they change
+      useEffect(() => {
+        if (Object.keys(earStats).length > 0) {
+          sessionStorage.setItem('earTrainingStats', JSON.stringify(earStats));
+        }
+      }, [earStats]);
+
+      // Weighted random selection — items with lower accuracy get picked more often
+      const weightedPick = (items, keyPrefix) => {
+        const weights = items.map(item => {
+          const key = keyPrefix + ':' + (item.name || item);
+          const stat = earStats[key];
+          if (!stat || stat.total < 2) return 3; // unknown items get high weight
+          const accuracy = stat.correct / stat.total;
+          // Lower accuracy = higher weight (inverse)
+          return Math.max(0.5, 3 - (accuracy * 2.5));
+        });
+        const totalWeight = weights.reduce((a, b) => a + b, 0);
+        let r = Math.random() * totalWeight;
+        for (let i = 0; i < items.length; i++) {
+          r -= weights[i];
+          if (r <= 0) return items[i];
+        }
+        return items[items.length - 1];
+      };
+
+      const recordAnswer = (key, correct) => {
+        setEarStats(prev => {
+          const stat = prev[key] || { correct: 0, total: 0 };
+          return { ...prev, [key]: { correct: stat.correct + (correct ? 1 : 0), total: stat.total + 1 } };
+        });
+      };
+
       // 4-beat count-in (2 beats per chord) then play
       const playWithCountIn = (callback) => {
         // Ensure audio context and trigger sample preload
@@ -2385,7 +2503,7 @@
 
       const newIntervalQuestion = () => {
         const rootMidi = 60 + Math.floor(Math.random() * 12);
-        const interval = INTERVALS[Math.floor(Math.random() * INTERVALS.length)];
+        const interval = weightedPick(INTERVALS, 'interval');
         const q = { type: "interval", rootMidi, interval, semitones: interval.semitones };
         setCurrentQuestion(q);
         setAnswer(null);
@@ -2443,26 +2561,30 @@
       const playProgression = (chordNames, rootMidi, speed) => {
         const gap = speed || progSpeed;
         const dur = Math.max(gap / 1000 + 0.4, 1.0);
-        chordNames.forEach((name, i) => {
-          const chord = DIATONIC_CHORDS_MAJOR[name];
-          if (!chord) return;
-          const chordRoot = rootMidi + chord.semi;
-          setTimeout(() => {
-            // Piano voicing
-            chord.intervals.forEach(interval => playNote(chordRoot + interval, dur));
-            // Bass root — warm synth bass 2 octaves below
-            if (progBass) {
-              playBassNote(chordRoot - 24, dur);
-            }
-          }, i * gap);
-        });
+        // Play twice with a pause between
+        for (let pass = 0; pass < 2; pass++) {
+          const passOffset = pass * (chordNames.length * gap + gap); // gap between passes
+          chordNames.forEach((name, i) => {
+            const chord = DIATONIC_CHORDS_MAJOR[name];
+            if (!chord) return;
+            const chordRoot = rootMidi + chord.semi;
+            setTimeout(() => {
+              // Piano voicing
+              chord.intervals.forEach(interval => playNote(chordRoot + interval, dur));
+              // Bass root — warm synth bass 2 octaves below
+              if (progBass) {
+                playBassNote(chordRoot - 24, dur);
+              }
+            }, passOffset + i * gap);
+          });
+        }
       };
 
       const filteredProgressions = progCategory === "all" ? PROGRESSIONS : PROGRESSIONS.filter(p => p.category === progCategory);
 
       const newProgressionQuestion = () => {
         const rootMidi = 48 + Math.floor(Math.random() * 12); // C3 to B3
-        const prog = filteredProgressions[Math.floor(Math.random() * filteredProgressions.length)];
+        const prog = weightedPick(filteredProgressions, 'progression');
         const q = { type: "progression", rootMidi, progression: prog };
         setCurrentQuestion(q);
         setAnswer(null);
@@ -2471,7 +2593,7 @@
 
       const newChordQuestion = () => {
         const rootMidi = 60 + Math.floor(Math.random() * 12);
-        const chord = QUIZ_CHORDS[Math.floor(Math.random() * QUIZ_CHORDS.length)];
+        const chord = weightedPick(QUIZ_CHORDS, 'chord');
         const q = { type: "chord", rootMidi, chord };
         setCurrentQuestion(q);
         setAnswer(null);
@@ -2479,13 +2601,21 @@
       };
 
       const checkAnswer = (guess) => {
-        let correct;
-        if (currentQuestion.type === "interval") correct = guess === currentQuestion.interval.name;
-        else if (currentQuestion.type === "chord") correct = guess === currentQuestion.chord.name;
-        else correct = guess === currentQuestion.progression.name;
+        let correct, statKey;
+        if (currentQuestion.type === "interval") {
+          correct = guess === currentQuestion.interval.name;
+          statKey = 'interval:' + currentQuestion.interval.name;
+        } else if (currentQuestion.type === "chord") {
+          correct = guess === currentQuestion.chord.name;
+          statKey = 'chord:' + currentQuestion.chord.name;
+        } else {
+          correct = guess === currentQuestion.progression.name;
+          statKey = 'progression:' + currentQuestion.progression.name;
+        }
         setAnswer({ guess, correct });
         setScore(prev => ({ correct: prev.correct + (correct ? 1 : 0), total: prev.total + 1 }));
         setStreak(correct ? streak + 1 : 0);
+        recordAnswer(statKey, correct);
       };
 
       const replayQuestion = () => {
@@ -2575,6 +2705,47 @@
                     <div style={{ fontSize: "11px", color: "#94a3b8", textTransform: "uppercase" }}>Streak</div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Strengths & Weaknesses */}
+            {score.total >= 3 && (
+              <div style={{ marginBottom: "16px" }}>
+                <button onClick={() => setShowStats(!showStats)} style={{
+                  ...styles.btnGhost, fontSize: "12px", width: "100%", textAlign: "center",
+                }}>
+                  {showStats ? "Hide" : "Show"} Strengths & Weaknesses
+                </button>
+                {showStats && (() => {
+                  const prefix = mode === "intervals" ? "interval" : mode === "chords" ? "chord" : "progression";
+                  const items = Object.entries(earStats)
+                    .filter(([k]) => k.startsWith(prefix + ':'))
+                    .map(([k, v]) => ({ name: k.split(':')[1], ...v, pct: Math.round((v.correct / v.total) * 100) }))
+                    .sort((a, b) => a.pct - b.pct);
+                  if (items.length === 0) return null;
+                  return (
+                    <div className="student-card" style={{ ...styles.card, padding: "16px", marginTop: "8px" }}>
+                      <div style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", color: "#64748b", marginBottom: "10px" }}>
+                        AI focuses on your weaker areas
+                      </div>
+                      {items.map(item => (
+                        <div key={item.name} style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                          <span style={{ fontSize: "13px", color: "#1e293b", minWidth: "120px", fontWeight: 500 }}>{item.name}</span>
+                          <div style={{ flex: 1, height: "8px", borderRadius: "4px", background: "rgba(0,0,0,0.05)", overflow: "hidden" }}>
+                            <div style={{
+                              width: item.pct + "%", height: "100%", borderRadius: "4px",
+                              background: item.pct >= 80 ? "#10b981" : item.pct >= 50 ? "#f59e0b" : "#ef4444",
+                              transition: "width 0.3s",
+                            }} />
+                          </div>
+                          <span style={{ fontSize: "11px", color: "#94a3b8", minWidth: "50px", textAlign: "right" }}>
+                            {item.correct}/{item.total} ({item.pct}%)
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
@@ -3525,6 +3696,276 @@
     // TEACHER PAGES
     // ============================================================
 
+
+    // ============================================================
+    // AI PRACTICE SUMMARY — per-student AI-generated summary
+    // ============================================================
+
+    function AIPracticeSummary({ studentId, studentName, token }) {
+      const [summary, setSummary] = useState(null);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState("");
+      const [expanded, setExpanded] = useState(true);
+
+      const generateSummary = async () => {
+        setLoading(true);
+        setError("");
+        try {
+          const data = await aiCall("practice_summary", { student_id: studentId }, token);
+          setSummary(data.summary);
+        } catch (err) {
+          setError(err.message || "Failed to generate summary");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      if (!summary && !loading) {
+        return (
+          <button onClick={generateSummary} style={{
+            background: "linear-gradient(135deg, rgba(139,92,246,0.08), rgba(217,119,6,0.08))",
+            border: "1px solid rgba(139,92,246,0.2)", borderRadius: "10px", padding: "10px 16px",
+            cursor: "pointer", fontSize: "13px", color: "#7c3aed", fontWeight: 500,
+            display: "flex", alignItems: "center", gap: "8px", width: "100%", justifyContent: "center",
+            transition: "all 0.2s"
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            Generate AI Summary
+          </button>
+        );
+      }
+
+      if (loading) {
+        return (
+          <div style={{
+            background: "linear-gradient(135deg, rgba(139,92,246,0.06), rgba(217,119,6,0.06))",
+            border: "1px solid rgba(139,92,246,0.15)", borderRadius: "10px", padding: "20px",
+            textAlign: "center"
+          }}>
+            <div style={{ fontSize: "13px", color: "#7c3aed", fontWeight: 500 }}>
+              <span style={{ display: "inline-block", animation: "pulse 1.5s ease-in-out infinite" }}>Analysing {studentName}&#39;s practice data...</span>
+            </div>
+          </div>
+        );
+      }
+
+      if (error) {
+        return (
+          <div style={{ padding: "12px", background: "rgba(239,68,68,0.06)", borderRadius: "10px", border: "1px solid rgba(239,68,68,0.15)" }}>
+            <div style={{ fontSize: "13px", color: "#dc2626" }}>{error}</div>
+            <button onClick={generateSummary} style={{ ...styles.btnSmall, marginTop: "8px", color: "#7c3aed", background: "rgba(139,92,246,0.08)", border: "none", cursor: "pointer", padding: "6px 12px", borderRadius: "8px", fontSize: "12px" }}>Retry</button>
+          </div>
+        );
+      }
+
+      return (
+        <div style={{
+          background: "linear-gradient(135deg, rgba(139,92,246,0.04), rgba(217,119,6,0.04))",
+          border: "1px solid rgba(139,92,246,0.12)", borderRadius: "10px", overflow: "hidden"
+        }}>
+          <div onClick={() => setExpanded(!expanded)} style={{
+            padding: "12px 16px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center",
+            background: "rgba(139,92,246,0.06)"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              <span style={{ fontSize: "13px", fontWeight: 600, color: "#7c3aed" }}>AI Summary</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              {summary?.headline && <span style={{ fontSize: "11px", color: "#8b5cf6", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{summary.headline}</span>}
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+          </div>
+          {expanded && (
+            <div style={{ padding: "16px" }}>
+              {summary?.summary_html && (
+                <div
+                  className="ai-summary-content"
+                  style={{ fontSize: "13px", lineHeight: "1.6", color: "#334155" }}
+                  dangerouslySetInnerHTML={{ __html: summary.summary_html }}
+                />
+              )}
+              <div style={{ marginTop: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: "11px", color: "#94a3b8" }}>Generated just now</span>
+                <button onClick={generateSummary} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "12px", color: "#7c3aed", display: "flex", alignItems: "center", gap: "4px" }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                  Regenerate
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+
+    // ============================================================
+    // AI SUGGEST NEXT ASSIGNMENT — per-student smart suggestions
+    // ============================================================
+
+    function AISuggestAssignment({ studentId, studentName, token, onAssignmentCreated }) {
+      const [suggestion, setSuggestion] = useState(null);
+      const [loading, setLoading] = useState(false);
+      const [creating, setCreating] = useState(false);
+      const [error, setError] = useState("");
+      const [expanded, setExpanded] = useState(false);
+
+      const generateSuggestion = async () => {
+        setLoading(true);
+        setError("");
+        try {
+          const data = await aiCall("suggest_practice", { student_id: studentId }, token);
+          setSuggestion(data.suggestion);
+          setExpanded(true);
+        } catch (err) {
+          setError(err.message || "Failed to generate suggestion");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const acceptSuggestion = async () => {
+        if (!suggestion) return;
+        setCreating(true);
+        try {
+          // Create any new content items first
+          const stepData = [];
+          for (const step of suggestion.steps) {
+            if (step.source === "new" && step.new_description) {
+              const res = await apiFetch("content.php", {
+                method: "POST",
+                body: JSON.stringify({
+                  title: step.title,
+                  type: step.type || "Practice",
+                  track: step.track || "Foundation",
+                  description: step.new_description,
+                })
+              }, token);
+              stepData.push({ contentId: res.id, notes: step.notes || "" });
+            } else if (step.content_id) {
+              stepData.push({ contentId: step.content_id, notes: step.notes || "" });
+            }
+          }
+
+          // Create the assignment
+          await apiFetch("assignments.php", {
+            method: "POST",
+            body: JSON.stringify({
+              studentId: studentId,
+              weekLabel: suggestion.week_label || "AI-suggested practice",
+              steps: stepData,
+            })
+          }, token);
+
+          setSuggestion(null);
+          setExpanded(false);
+          if (onAssignmentCreated) onAssignmentCreated();
+        } catch (err) {
+          setError(err.message || "Failed to create assignment");
+        } finally {
+          setCreating(false);
+        }
+      };
+
+      if (!suggestion && !loading) {
+        return (
+          <button onClick={generateSuggestion} style={{
+            background: "linear-gradient(135deg, rgba(16,185,129,0.08), rgba(217,119,6,0.08))",
+            border: "1px solid rgba(16,185,129,0.2)", borderRadius: "10px", padding: "10px 16px",
+            cursor: "pointer", fontSize: "13px", color: "#059669", fontWeight: 500,
+            display: "flex", alignItems: "center", gap: "8px", width: "100%", justifyContent: "center",
+            transition: "all 0.2s"
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12l2 2 4-4"/></svg>
+            AI Suggest Next Assignment
+          </button>
+        );
+      }
+
+      if (loading) {
+        return (
+          <div style={{
+            background: "linear-gradient(135deg, rgba(16,185,129,0.06), rgba(217,119,6,0.06))",
+            border: "1px solid rgba(16,185,129,0.15)", borderRadius: "10px", padding: "20px",
+            textAlign: "center"
+          }}>
+            <div style={{ fontSize: "13px", color: "#059669", fontWeight: 500 }}>
+              <span style={{ display: "inline-block", animation: "pulse 1.5s ease-in-out infinite" }}>Analysing {studentName}&#39;s history and your library...</span>
+            </div>
+          </div>
+        );
+      }
+
+      if (error) {
+        return (
+          <div style={{ padding: "12px", background: "rgba(239,68,68,0.06)", borderRadius: "10px", border: "1px solid rgba(239,68,68,0.15)" }}>
+            <div style={{ fontSize: "13px", color: "#dc2626" }}>{error}</div>
+            <button onClick={generateSuggestion} style={{ background: "rgba(16,185,129,0.08)", border: "none", cursor: "pointer", padding: "6px 12px", borderRadius: "8px", fontSize: "12px", color: "#059669", marginTop: "8px" }}>Retry</button>
+          </div>
+        );
+      }
+
+      return (
+        <div style={{
+          background: "linear-gradient(135deg, rgba(16,185,129,0.04), rgba(217,119,6,0.04))",
+          border: "1px solid rgba(16,185,129,0.12)", borderRadius: "10px", overflow: "hidden"
+        }}>
+          <div onClick={() => setExpanded(!expanded)} style={{
+            padding: "12px 16px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center",
+            background: "rgba(16,185,129,0.06)"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12l2 2 4-4"/></svg>
+              <span style={{ fontSize: "13px", fontWeight: 600, color: "#059669" }}>Suggested Assignment</span>
+            </div>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          {expanded && suggestion && (
+            <div style={{ padding: "16px" }}>
+              {suggestion.rationale && (
+                <p style={{ fontSize: "13px", color: "#64748b", fontStyle: "italic", margin: "0 0 12px 0" }}>{suggestion.rationale}</p>
+              )}
+              <div style={{ fontSize: "13px", fontWeight: 600, color: "#1e293b", marginBottom: "8px" }}>{suggestion.week_label}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {(suggestion.steps || []).map((step, i) => (
+                  <div key={i} style={{
+                    display: "flex", alignItems: "center", gap: "10px", padding: "8px 12px",
+                    background: step.source === "new" ? "rgba(245,158,11,0.06)" : "rgba(241,245,249,0.8)",
+                    borderRadius: "8px", border: step.source === "new" ? "1px dashed rgba(245,158,11,0.3)" : "1px solid #e2e8f0"
+                  }}>
+                    <span style={{ fontSize: "12px", fontWeight: 700, color: "#94a3b8", minWidth: "20px" }}>{i + 1}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: "13px", fontWeight: 500, color: "#1e293b" }}>{step.title}</div>
+                      {step.notes && <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>{step.notes}</div>}
+                    </div>
+                    <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", padding: "2px 8px", borderRadius: "4px",
+                      background: step.source === "new" ? "rgba(245,158,11,0.1)" : "rgba(100,116,139,0.08)",
+                      color: step.source === "new" ? "#d97706" : "#64748b"
+                    }}>{step.source === "new" ? "New" : step.type || "Library"}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginTop: "16px", display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                <button onClick={() => { setSuggestion(null); setExpanded(false); }} style={{
+                  background: "none", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "8px 16px",
+                  cursor: "pointer", fontSize: "13px", color: "#64748b"
+                }}>Dismiss</button>
+                <button onClick={generateSuggestion} style={{
+                  background: "none", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "8px", padding: "8px 16px",
+                  cursor: "pointer", fontSize: "13px", color: "#059669"
+                }}>Regenerate</button>
+                <button onClick={acceptSuggestion} disabled={creating} style={{
+                  background: "linear-gradient(135deg, #059669, #10b981)", border: "none", borderRadius: "8px",
+                  padding: "8px 20px", cursor: creating ? "wait" : "pointer", fontSize: "13px", fontWeight: 600,
+                  color: "#fff", opacity: creating ? 0.7 : 1
+                }}>{creating ? "Creating..." : "Accept & Create Assignment"}</button>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
     function TeacherStudents({ students, assignments, progress, contentLibrary, token, onRefreshStudents, onRefreshAssignments, onRefreshProgress }) {
       const [showAdd, setShowAdd] = useState(false);
       const [expandedStudentId, setExpandedStudentId] = useState(null);
@@ -3684,6 +4125,11 @@
                     {!latestAssignment && (
                       <div style={{ marginTop: "12px", fontSize: "13px", color: "#94a3b8", fontStyle: "italic" }}>No assignments yet</div>
                     )}
+
+                    <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                      <AIPracticeSummary studentId={student.id} studentName={student.name} token={token} />
+                      <AISuggestAssignment studentId={student.id} studentName={student.name} token={token} onAssignmentCreated={async () => { await onRefreshAssignments(); }} />
+                    </div>
 
                     <div style={{ marginTop: "16px", borderTop: "1px solid #f1f5f9", paddingTop: "12px" }}>
                       <button onClick={() => setExpandedStudentId(expandedStudentId === student.id ? null : student.id)}
@@ -5070,7 +5516,7 @@
                               <PracticeTimer stepId={step.id} assignmentId={activeAssignment.id} studentId={studentId} token={token} initialSeconds={progressEntry?.practiceSeconds || 0} onTick={(s) => { timerSecondsRef.current[step.id] = s; }} />
                             )}
                             {!completed && (
-                              <AudioRecorder stepId={step.id} assignmentId={activeAssignment.id} studentId={studentId} token={token} existingUrl={progressEntry?.audioUrl} />
+                              <AudioRecorder stepId={step.id} assignmentId={activeAssignment.id} studentId={studentId} token={token} existingUrl={progressEntry?.audioUrl} contentTitle={contentLibrary.find(c => c.id === step.contentId)?.title} contentDescription={contentLibrary.find(c => c.id === step.contentId)?.description} contentType={contentLibrary.find(c => c.id === step.contentId)?.type} stepNotes={step.notes} />
                             )}
                             {isNext && !completed && (
                               <button className="student-mark-complete" onClick={() => handleComplete(step.id)} style={{ ...styles.btnPrimary, marginTop: "12px", fontSize: "13px", padding: "8px 20px" }}>
