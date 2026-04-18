@@ -2097,12 +2097,19 @@
       const [observations, setObservations] = useState([]);
       const [newNote, setNewNote] = useState("");
       const [saving, setSaving] = useState(false);
+      const [expanding, setExpanding] = useState(false);
 
       const fetchObservations = async () => {
         try {
-          const data = await apiFetch("learning.php?action=observations&student_id=" + studentId, {}, token);
-          setObservations(data);
-        } catch (e) { /* ignore */ }
+          const res = await fetch(API_BASE + "learning.php?action=observations&student_id=" + studentId, {
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token }
+          });
+          const text = await res.text();
+                    if (text) {
+            const data = JSON.parse(text);
+            if (Array.isArray(data)) setObservations(data);
+          }
+        } catch (e) { console.error("fetchObservations error:", e); }
       };
 
       useEffect(() => { fetchObservations(); }, [studentId]);
@@ -2111,10 +2118,17 @@
         if (!newNote.trim()) return;
         setSaving(true);
         try {
-          await apiFetch("learning.php?action=observations&student_id=" + studentId, {
+          const res = await fetch(API_BASE + "learning.php?action=observations&student_id=" + studentId, {
             method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
             body: JSON.stringify({ note: newNote.trim() })
-          }, token);
+          });
+          const text = await res.text();
+          if (res.status >= 400) { const err = text ? JSON.parse(text) : {}; throw new Error(err.error || "Server error " + res.status); }
+          if (text) {
+            const data = JSON.parse(text);
+            if (!res.ok) throw new Error(data.error || "API error " + res.status);
+          }
           setNewNote("");
           await fetchObservations();
         } catch (e) { alert("Failed: " + e.message); }
@@ -2140,13 +2154,43 @@
 
       return (
         <div>
-          <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
-            <input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Add a lesson observation..."
-              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAdd(); } }}
-              style={{ ...styles.input, flex: 1, fontSize: "13px" }} />
-            <button onClick={handleAdd} disabled={saving || !newNote.trim()} style={{ ...styles.btnPrimary, whiteSpace: "nowrap", opacity: !newNote.trim() ? 0.5 : 1 }}>
-              {saving ? "..." : "Add Note"}
-            </button>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "16px" }}>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <input value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Add a lesson observation... (shorthand ok!)"
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAdd(); } }}
+                style={{ ...styles.input, flex: 1, fontSize: "13px" }} />
+              <button onClick={handleAdd} disabled={saving || !newNote.trim()} style={{ ...styles.btnPrimary, whiteSpace: "nowrap", opacity: !newNote.trim() ? 0.5 : 1 }}>
+                {saving ? "..." : "Add"}
+              </button>
+            </div>
+            {newNote.trim() && (
+              <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                <button onClick={async () => {
+                  setExpanding(true);
+                  try {
+                    const data = await aiCall("expand_observation", { shorthand: newNote }, token);
+                    console.log("AI response:", data);
+                    if (data && data.expanded) {
+                      setNewNote(data.expanded);
+                    } else {
+                      console.error("No expanded field in response:", data);
+                    }
+                  } catch (e) {
+                    console.error("AI expand error:", e);
+                  } finally {
+                    setExpanding(false);
+                  }
+                }} disabled={expanding} style={{
+                  padding: "3px 10px", borderRadius: "8px", border: "1px solid rgba(217,119,6,0.25)",
+                  background: expanding ? "rgba(217,119,6,0.1)" : "transparent",
+                  cursor: expanding ? "wait" : "pointer", fontSize: "11px", color: "#d97706",
+                  display: "flex", alignItems: "center", gap: "4px", fontWeight: 500
+                }}>
+                  <AIIcons.Sparkle /> {expanding ? "Thinking..." : "Tidy up with AI"}
+                </button>
+                <span style={{ fontSize: "11px", color: "#94a3b8" }}>Expands shorthand into proper notes</span>
+              </div>
+            )}
           </div>
           {observations.length === 0 ? (
             <p style={{ fontSize: "13px", color: "#94a3b8", fontStyle: "italic" }}>No observations yet. Add notes during lessons to track how this student learns.</p>

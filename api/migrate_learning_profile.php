@@ -6,7 +6,7 @@ try {
     // Student learning preferences (filled by student)
     $db->exec('CREATE TABLE IF NOT EXISTS student_preferences (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        student_id INT NOT NULL,
+        student_id VARCHAR(100) NOT NULL,
         workload_pref ENUM("light","moderate","heavy") DEFAULT "moderate",
         task_size_pref ENUM("few_big","mixed","many_small") DEFAULT "mixed",
         stress_level INT DEFAULT 3,
@@ -21,7 +21,7 @@ try {
     // Weekly check-ins (filled by student after practice)
     $db->exec('CREATE TABLE IF NOT EXISTS student_checkins (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        student_id INT NOT NULL,
+        student_id VARCHAR(100) NOT NULL,
         week_label VARCHAR(100),
         felt_workload ENUM("too_little","just_right","too_much") DEFAULT "just_right",
         felt_difficulty ENUM("too_easy","just_right","too_hard") DEFAULT "just_right",
@@ -35,8 +35,8 @@ try {
     // Teacher observations (filled by teacher during lessons)
     $db->exec('CREATE TABLE IF NOT EXISTS teacher_observations (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        student_id INT NOT NULL,
-        teacher_id INT NOT NULL,
+        student_id VARCHAR(100) NOT NULL,
+        teacher_id VARCHAR(100) NOT NULL,
         note TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         INDEX (student_id),

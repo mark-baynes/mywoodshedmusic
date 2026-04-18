@@ -1,8 +1,20 @@
 <?php
 // Learning profile API — student preferences, check-ins, teacher observations
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+set_error_handler(function($errno, $errstr, $errfile, $errline) {
+    header('Content-Type: application/json');
+    echo json_encode(['error' => "PHP Error: $errstr", 'file' => $errfile, 'line' => $errline]);
+    exit;
+});
+set_exception_handler(function($e) {
+    header('Content-Type: application/json');
+    echo json_encode(['error' => 'Exception: ' . $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine()]);
+    exit;
+});
 require_once __DIR__ . '/helpers.php';
 
-$tokenData = requireAuth();
+$teacherId = requireAuth();
 $db = getDB();
 
 $method = $_SERVER['REQUEST_METHOD'];
@@ -92,7 +104,7 @@ switch ($action) {
         if (!$studentId) jsonResponse(['error' => 'student_id required'], 400);
 
         if ($method === 'GET') {
-            $teacherId = $tokenData['sub'] ?? $tokenData['teacher_id'] ?? null;
+            
             $stmt = $db->prepare('SELECT * FROM teacher_observations WHERE student_id = ? AND teacher_id = ? ORDER BY created_at DESC LIMIT 50');
             $stmt->execute([$studentId, $teacherId]);
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -110,7 +122,7 @@ switch ($action) {
         if ($method === 'POST') {
             $body = getBody();
             if (empty($body['note'])) jsonResponse(['error' => 'note required'], 400);
-            $teacherId = $tokenData['sub'] ?? $tokenData['teacher_id'] ?? null;
+            
             $stmt = $db->prepare('INSERT INTO teacher_observations (student_id, teacher_id, note) VALUES (?, ?, ?)');
             $stmt->execute([$studentId, $teacherId, $body['note']]);
             jsonResponse(['success' => true, 'id' => $db->lastInsertId()], 201);
@@ -119,11 +131,15 @@ switch ($action) {
         if ($method === 'DELETE') {
             $id = $_GET['id'] ?? '';
             if (!$id) jsonResponse(['error' => 'id required'], 400);
-            $teacherId = $tokenData['sub'] ?? $tokenData['teacher_id'] ?? null;
+            
             $stmt = $db->prepare('DELETE FROM teacher_observations WHERE id = ? AND teacher_id = ?');
             $stmt->execute([$id, $teacherId]);
             jsonResponse(['success' => true]);
         }
+        break;
+
+    case 'debug':
+        jsonResponse(['teacherId' => $teacherId, 'type' => gettype($teacherId), 'method' => $method]);
         break;
 
     default:

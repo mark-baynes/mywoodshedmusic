@@ -159,6 +159,24 @@ Respond with a JSON object:
         jsonResponse($parsed);
         break;
 
+    // ─── Expand teacher observation shorthand ───
+    case 'expand_observation':
+        $shorthand = trim($body['shorthand'] ?? '');
+        if (!$shorthand) {
+            jsonResponse(['error' => 'Shorthand text required'], 400);
+        }
+
+        $prompt = 'A piano teacher wrote this quick shorthand observation during a lesson: "' . $shorthand . '". Expand this into a clear, well-written teacher observation note. Keep the meaning exactly the same but make it readable and professional. Preserve any musical terminology. Stay concise, one or two sentences. This is a private teacher note, not student-facing. Respond with a JSON object: {"expanded": "the expanded observation text"}';
+
+        $result = callClaude($MUSIC_SYSTEM, $prompt);
+        $parsed = json_decode($result, true);
+        if (!$parsed) {
+            preg_match('/\{.*\}/s', $result, $m);
+            $parsed = json_decode($m[0] ?? '{}', true);
+        }
+        jsonResponse($parsed);
+        break;
+
     // ─── YouTube import — get metadata + AI description ───
     case 'youtube_import':
         $url = trim($body['url'] ?? '');
@@ -396,5 +414,5 @@ Respond with a JSON object:
         break;
 
     default:
-        jsonResponse(['error' => 'Invalid action. Use: generate_content, expand_shorthand, youtube_import, youtube_bulk_import, build_path, bulk_generate, generate_lesson'], 400);
+        jsonResponse(['error' => 'Invalid action. Use: generate_content, expand_shorthand, expand_observation, youtube_import, youtube_bulk_import, build_path, bulk_generate, generate_lesson'], 400);
 }
