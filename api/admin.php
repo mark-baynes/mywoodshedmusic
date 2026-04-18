@@ -78,6 +78,34 @@ switch ($action) {
         jsonResponse(['success' => true]);
         break;
 
+    case 'get_settings':
+        // Auto-create settings table
+        try {
+            $db->exec('CREATE TABLE IF NOT EXISTS settings (
+                setting_key VARCHAR(100) PRIMARY KEY,
+                setting_value TEXT NOT NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )');
+            $db->exec("INSERT IGNORE INTO settings (setting_key, setting_value) VALUES ('max_upload_mb', '10')");
+        } catch (PDOException $e) {}
+        $stmt = $db->query('SELECT setting_key, setting_value FROM settings');
+        $settings = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $settings[$row['setting_key']] = $row['setting_value'];
+        }
+        jsonResponse($settings);
+        break;
+
+    case 'update_setting':
+        $body = getBody();
+        $key = trim($body['key'] ?? '');
+        $value = trim($body['value'] ?? '');
+        if (!$key) jsonResponse(['error' => 'Setting key required'], 400);
+        $stmt = $db->prepare('INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)');
+        $stmt->execute([$key, $value]);
+        jsonResponse(['success' => true]);
+        break;
+
     default:
         jsonResponse(['error' => 'Invalid admin action'], 400);
 }
