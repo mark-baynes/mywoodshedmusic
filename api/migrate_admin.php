@@ -33,9 +33,9 @@ try {
 // Mark the first teacher (Mark) as approved + admin
 // Find by email
 $stmt = $db->prepare('UPDATE teachers SET approved = 1, is_admin = 1 WHERE email = ?');
-$stmt->execute(['markbaynes@gmail.com']);
+$stmt->execute(['mark@jazzpiano.co.nz']);
 $affected = $stmt->rowCount();
-echo "Set markbaynes@gmail.com as approved admin: $affected rows updated.\n";
+echo "Set mark@jazzpiano.co.nz as approved admin: $affected rows updated.\n";
 
 // Also approve any existing teachers so they aren't locked out
 $db->exec('UPDATE teachers SET approved = 1 WHERE approved = 0');
