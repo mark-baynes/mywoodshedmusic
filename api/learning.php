@@ -186,6 +186,57 @@ switch ($action) {
         jsonResponse(['teacherId' => $teacherId, 'type' => gettype($teacherId), 'method' => $method]);
         break;
 
+    // ===== TEACHER LESSON STYLE PREFERENCES =====
+    case 'teaching_style':
+        // Auto-create table
+        try {
+            $db->exec("CREATE TABLE IF NOT EXISTS teacher_lesson_style (
+                teacher_id VARCHAR(36) PRIMARY KEY,
+                tone VARCHAR(50) DEFAULT 'encouraging',
+                detail_level VARCHAR(50) DEFAULT 'balanced',
+                lesson_length VARCHAR(50) DEFAULT 'medium',
+                include_theory TINYINT(1) DEFAULT 1,
+                include_exercises TINYINT(1) DEFAULT 1,
+                include_tips TINYINT(1) DEFAULT 1,
+                custom_instructions TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE
+            )");
+        } catch (PDOException $e) {}
+
+        if ($method === 'GET') {
+            $stmt = $db->prepare('SELECT * FROM teacher_lesson_style WHERE teacher_id = ?');
+            $stmt->execute([$teacherId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($row) {
+                $row['include_theory'] = (bool)$row['include_theory'];
+                $row['include_exercises'] = (bool)$row['include_exercises'];
+                $row['include_tips'] = (bool)$row['include_tips'];
+            }
+            jsonResponse($row ?: (object)[]);
+        }
+
+        if ($method === 'POST' || $method === 'PUT') {
+            $body = getBody();
+            $stmt = $db->prepare('INSERT INTO teacher_lesson_style (teacher_id, tone, detail_level, lesson_length, include_theory, include_exercises, include_tips, custom_instructions)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE tone=VALUES(tone), detail_level=VALUES(detail_level), lesson_length=VALUES(lesson_length),
+                include_theory=VALUES(include_theory), include_exercises=VALUES(include_exercises), include_tips=VALUES(include_tips),
+                custom_instructions=VALUES(custom_instructions)');
+            $stmt->execute([
+                $teacherId,
+                $body['tone'] ?? 'encouraging',
+                $body['detail_level'] ?? 'balanced',
+                $body['lesson_length'] ?? 'medium',
+                ($body['include_theory'] ?? true) ? 1 : 0,
+                ($body['include_exercises'] ?? true) ? 1 : 0,
+                ($body['include_tips'] ?? true) ? 1 : 0,
+                $body['custom_instructions'] ?? ''
+            ]);
+            jsonResponse(['success' => true]);
+        }
+        break;
+
     default:
-        jsonResponse(['error' => 'Unknown action. Use ?action=preferences|checkins|observations|toolbox_access'], 400);
+        jsonResponse(['error' => 'Unknown action. Use ?action=preferences|checkins|observations|toolbox_access|teaching_style'], 400);
 }

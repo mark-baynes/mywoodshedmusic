@@ -1516,6 +1516,130 @@
     }
 
     // ============================================================
+    // TEACHER LESSON STYLE PREFERENCES
+    // ============================================================
+
+    function TeachingStyleForm({ token }) {
+      const [prefs, setPrefs] = useState({
+        tone: "encouraging",
+        detail_level: "balanced",
+        lesson_length: "medium",
+        include_theory: true,
+        include_exercises: true,
+        include_tips: true,
+        custom_instructions: "",
+      });
+      const [loading, setLoading] = useState(true);
+      const [saving, setSaving] = useState(false);
+      const [saved, setSaved] = useState(false);
+
+      useEffect(() => {
+        (async () => {
+          try {
+            const data = await apiFetch("learning.php?action=teaching_style", {}, token);
+            if (data && data.tone) {
+              setPrefs(p => ({ ...p, ...data }));
+            }
+          } catch (e) { /* first time */ }
+          setLoading(false);
+        })();
+      }, []);
+
+      const handleSave = async () => {
+        setSaving(true);
+        try {
+          await apiFetch("learning.php?action=teaching_style", {
+            method: "POST",
+            body: JSON.stringify(prefs)
+          }, token);
+          setSaved(true);
+          setTimeout(() => setSaved(false), 2000);
+        } catch (e) { alert("Save failed: " + e.message); }
+        setSaving(false);
+      };
+
+      if (loading) return <div style={{ padding: "20px", color: "#94a3b8" }}>Loading...</div>;
+
+      const chipBtn = (field, value, label) => (
+        <button onClick={() => setPrefs(p => ({...p, [field]: value}))}
+          style={{ padding: "8px 16px", borderRadius: "20px", fontSize: "13px", cursor: "pointer",
+            border: prefs[field] === value ? "2px solid #d97706" : "1px solid #e2e8f0",
+            background: prefs[field] === value ? "rgba(217,119,6,0.1)" : "#fff",
+            color: prefs[field] === value ? "#b45309" : "#64748b",
+            fontWeight: prefs[field] === value ? 600 : 400 }}
+        >{label}</button>
+      );
+
+      const toggleBtn = (field, label) => (
+        <button onClick={() => setPrefs(p => ({...p, [field]: !p[field]}))}
+          style={{ padding: "8px 16px", borderRadius: "20px", fontSize: "13px", cursor: "pointer",
+            border: prefs[field] ? "2px solid #d97706" : "1px solid #e2e8f0",
+            background: prefs[field] ? "rgba(217,119,6,0.1)" : "#fff",
+            color: prefs[field] ? "#b45309" : "#64748b",
+            fontWeight: prefs[field] ? 600 : 400, display: "flex", alignItems: "center", gap: "6px" }}
+        >{prefs[field] ? "\u2713" : ""} {label}</button>
+      );
+
+      return (
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          <div>
+            <label style={styles.label}>Tone of voice</label>
+            <p style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "6px" }}>How should AI-generated lessons sound?</p>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              {chipBtn("tone", "encouraging", "Encouraging & warm")}
+              {chipBtn("tone", "direct", "Direct & concise")}
+              {chipBtn("tone", "academic", "Academic & thorough")}
+              {chipBtn("tone", "casual", "Casual & conversational")}
+            </div>
+          </div>
+
+          <div>
+            <label style={styles.label}>Level of detail</label>
+            <p style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "6px" }}>How much explanation should lessons include?</p>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              {chipBtn("detail_level", "concise", "Concise -- key points only")}
+              {chipBtn("detail_level", "balanced", "Balanced -- explain but don't over-do it")}
+              {chipBtn("detail_level", "detailed", "Detailed -- thorough explanations")}
+            </div>
+          </div>
+
+          <div>
+            <label style={styles.label}>Typical lesson length</label>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "6px" }}>
+              {chipBtn("lesson_length", "short", "Short (200-400 words)")}
+              {chipBtn("lesson_length", "medium", "Medium (400-800 words)")}
+              {chipBtn("lesson_length", "long", "Long (800+ words)")}
+            </div>
+          </div>
+
+          <div>
+            <label style={styles.label}>Always include these sections</label>
+            <p style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "6px" }}>Toggle which sections appear in generated lessons</p>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              {toggleBtn("include_theory", "Theory / background")}
+              {toggleBtn("include_exercises", "Practice exercises")}
+              {toggleBtn("include_tips", "Tips & common mistakes")}
+            </div>
+          </div>
+
+          <div>
+            <label style={styles.label}>Custom instructions for the AI</label>
+            <p style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "6px" }}>Anything specific about your teaching approach that lessons should reflect</p>
+            <textarea style={{ ...styles.textarea, minHeight: "80px" }}
+              value={prefs.custom_instructions} onChange={e => setPrefs(p => ({...p, custom_instructions: e.target.value}))}
+              placeholder="e.g. I teach jazz primarily using the Barry Harris method. Always include chord symbols. My students range from intermediate to advanced. Avoid beginner-level explanations unless the content is tagged as Foundation." />
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <button onClick={handleSave} disabled={saving} style={{ ...styles.btnPrimary, opacity: saving ? 0.7 : 1 }}>
+              {saving ? "Saving..." : saved ? "Saved!" : "Save Preferences"}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
     // METRONOME / GROOVE MACHINE
     // ============================================================
 
@@ -7973,6 +8097,12 @@
                 <p style={styles.pageSubtitle}>Update your details and control what students can see</p>
                 <div style={styles.card}>
                   <ProfileEditor token={token} isStudent={false} />
+                </div>
+
+                <h3 style={{ fontSize: "18px", fontWeight: 600, color: "#1e293b", marginTop: "24px", marginBottom: "4px" }}>Teaching & AI Style</h3>
+                <p style={{ fontSize: "14px", color: "#64748b", marginBottom: "12px" }}>Tell the AI how you like your lessons written — this shapes every generated lesson</p>
+                <div style={styles.card}>
+                  <TeachingStyleForm token={token} />
                 </div>
               </div>
             )}

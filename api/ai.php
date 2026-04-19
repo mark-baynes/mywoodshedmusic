@@ -433,6 +433,31 @@ Generate between 6 and 24 items depending on what makes sense for the category."
             jsonResponse(['error' => 'Brief or description required'], 400);
         }
 
+        // Load teacher's lesson style preferences
+        $styleNote = "";
+        try {
+            $db = getDB();
+            $styleStmt = $db->prepare('SELECT * FROM teacher_lesson_style WHERE teacher_id = ?');
+            $styleStmt->execute([$teacherId]);
+            $style = $styleStmt->fetch(PDO::FETCH_ASSOC);
+            if ($style) {
+                $parts = [];
+                if ($style['tone']) $parts[] = "Tone: {$style['tone']}";
+                if ($style['detail_level']) $parts[] = "Detail level: {$style['detail_level']}";
+                if ($style['lesson_length']) {
+                    $lengths = ['short' => '200-400 words', 'medium' => '400-800 words', 'long' => '800+ words'];
+                    $parts[] = "Target length: " . ($lengths[$style['lesson_length']] ?? $style['lesson_length']);
+                }
+                $sections = [];
+                if (!$style['include_theory']) $sections[] = "Skip theory/background section";
+                if (!$style['include_exercises']) $sections[] = "Skip practice exercises section";
+                if (!$style['include_tips']) $sections[] = "Skip tips & common mistakes section";
+                if ($sections) $parts[] = implode(". ", $sections);
+                if ($style['custom_instructions']) $parts[] = "Teacher instructions: {$style['custom_instructions']}";
+                if ($parts) $styleNote = "\n\nIMPORTANT — The teacher has set these preferences for how lessons should be written:\n" . implode("\n", $parts) . "\nFollow these preferences closely.";
+            }
+        } catch (PDOException $e) {}
+
         $lessonPrompt = "You are creating a complete, rich lesson document for a piano student. The teacher has given you a brief description, and you need to create a full, well-structured lesson page.
 
 The teacher wrote: \"{$brief}{$description}\"
@@ -459,6 +484,8 @@ Style guidelines:
 - Use <div class=\"practice-box\"> for specific practice exercises
 - Keep it thorough but not overwhelming — aim for 400-800 words
 
+{$styleNote}
+
 Respond with a JSON object:
 {
   \"lesson_html\": \"the complete HTML content\",
@@ -483,6 +510,22 @@ Respond with a JSON object:
         break;
 
     case 'refine_lesson':
+        // Load teacher style prefs
+        $styleNote = "";
+        try {
+            $db = getDB();
+            $ss = $db->prepare('SELECT tone, detail_level, custom_instructions FROM teacher_lesson_style WHERE teacher_id = ?');
+            $ss->execute([$teacherId]);
+            $st = $ss->fetch(PDO::FETCH_ASSOC);
+            if ($st) {
+                $pp = [];
+                if ($st['tone']) $pp[] = "Tone: {$st['tone']}";
+                if ($st['detail_level']) $pp[] = "Detail: {$st['detail_level']}";
+                if ($st['custom_instructions']) $pp[] = "Teacher instructions: {$st['custom_instructions']}";
+                if ($pp) $styleNote = "\nTeacher's style preferences: " . implode(". ", $pp);
+            }
+        } catch (PDOException $e) {}
+
         $contentId = trim($body['content_id'] ?? '');
         $currentHtml = $body['current_html'] ?? '';
         $feedback = trim($body['feedback'] ?? '');
@@ -504,6 +547,8 @@ Current lesson HTML:
 
 The teacher's feedback / requested changes:
 \"{$feedback}\"
+
+{$styleNote}
 
 Please regenerate the lesson HTML incorporating the teacher's feedback. Keep the same overall structure and style guidelines (h2 for sections, h3 for subsections, ol/ul for lists, piano-tip and practice-box div classes for callouts). Apply the teacher's requested changes while preserving what was good about the original.
 
