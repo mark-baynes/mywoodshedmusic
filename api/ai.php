@@ -482,6 +482,53 @@ Respond with a JSON object:
         jsonResponse(['lesson' => $parsed]);
         break;
 
+    case 'refine_lesson':
+        $contentId = trim($body['content_id'] ?? '');
+        $currentHtml = $body['current_html'] ?? '';
+        $feedback = trim($body['feedback'] ?? '');
+        $title = trim($body['title'] ?? '');
+        $track = trim($body['track'] ?? '');
+        $type = trim($body['type'] ?? '');
+
+        if (!$currentHtml || !$feedback) {
+            jsonResponse(['error' => 'Current lesson HTML and feedback are required'], 400);
+        }
+
+        $refinePrompt = "You previously generated a lesson document for a piano teaching app. The teacher has reviewed it and wants changes.
+
+Title: \"{$title}\"
+" . ($track ? "Track: $track\n" : "") . ($type ? "Type: $type\n" : "") . "
+
+Current lesson HTML:
+{$currentHtml}
+
+The teacher's feedback / requested changes:
+\"{$feedback}\"
+
+Please regenerate the lesson HTML incorporating the teacher's feedback. Keep the same overall structure and style guidelines (h2 for sections, h3 for subsections, ol/ul for lists, piano-tip and practice-box div classes for callouts). Apply the teacher's requested changes while preserving what was good about the original.
+
+Respond with a JSON object:
+{
+  \"lesson_html\": \"the updated HTML content\",
+  \"summary\": \"one-line summary of what changed\"
+}";
+
+        $result = callClaude($MUSIC_SYSTEM . "\n\nFor this request, refine an existing HTML lesson document based on teacher feedback. Respond in valid JSON.", $refinePrompt, 4096);
+        $parsed = json_decode($result, true);
+        if (!$parsed) {
+            preg_match('/\{.*\}/s', $result, $m);
+            $parsed = json_decode($m[0] ?? '{}', true);
+        }
+
+        if ($contentId && isset($parsed['lesson_html'])) {
+            $db = getDB();
+            $stmt = $db->prepare('UPDATE content SET lesson_content = ? WHERE id = ? AND teacher_id = ?');
+            $stmt->execute([$parsed['lesson_html'], $contentId, $teacherId]);
+        }
+
+        jsonResponse(['lesson' => $parsed]);
+        break;
+
     case 'fix_enharmonics':
         $map = $body['enharmonic_map'] ?? null;
         if (!$map) jsonResponse(['error' => 'enharmonic_map required'], 400);
@@ -845,5 +892,5 @@ Respond with a JSON object:
         break;
 
     default:
-        jsonResponse(['error' => 'Invalid action. Use: generate_content, expand_shorthand, expand_observation, youtube_import, youtube_refine, youtube_bulk_import, build_path, bulk_generate, generate_lesson, fix_enharmonics, generate_cover_art, practice_summary'], 400);
+        jsonResponse(['error' => 'Invalid action. Use: generate_content, expand_shorthand, expand_observation, youtube_import, youtube_refine, youtube_bulk_import, build_path, bulk_generate, generate_lesson, refine_lesson, fix_enharmonics, generate_cover_art, practice_summary'], 400);
 }
