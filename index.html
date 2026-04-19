@@ -1,10 +1,10 @@
-<!-- Copyright (c) 2025 Boing Media Ltd. Created by Dr Mark Baynes. All rights reserved. -->
+<!-- Copyright (c) 2025 Boing Media Ltd. Dr Mark Baynes. All rights reserved. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="author" content="Dr Mark Baynes">
-  <meta name="copyright" content="Copyright 2025 Boing Media Ltd. Created by Dr Mark Baynes. All rights reserved.">
+  <meta name="copyright" content="Copyright 2025 Boing Media Ltd. Dr Mark Baynes. All rights reserved.">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>My Woodshed Music</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -916,7 +916,7 @@
         setError("");
         try {
           const action = mode === "teacher" ? "start_teacher" : "start_student";
-          const data = await apiFetch("demo.php?action=" + action, { method: "POST" });
+          const data = await apiFetch("demo.php?action=" + action, {});
           if (mode === "teacher") {
             onAuth(data.token, data.teacher);
           } else {
@@ -1213,7 +1213,7 @@
             </div>
 
             <div style={{ textAlign: "center", marginTop: "24px", fontSize: "12px", color: "#94a3b8" }}>
-              &copy; {new Date().getFullYear()} Boing Media Ltd. Created by Dr Mark Baynes.
+              &copy; {new Date().getFullYear()} Boing Media Ltd. Dr Mark Baynes.
             </div>
           </div>
         </div>
@@ -3601,7 +3601,7 @@
     // WEEKLY CHECK-IN (shown to student after practice)
     // ============================================================
 
-    function WeeklyCheckIn({ studentId, token, weekLabel, onComplete }) {
+    function WeeklyCheckIn({ studentId, token, weekLabel, onComplete, teacherName }) {
       const [form, setForm] = useState({ felt_workload: "just_right", felt_difficulty: "just_right", felt_enjoyment: 3, free_comment: "" });
       const [saving, setSaving] = useState(false);
 
@@ -5964,7 +5964,7 @@
                 </div>
 
                 {allDone && !viewingPast && isStudentAuth && (
-                  <WeeklyCheckIn studentId={studentId} token={token} weekLabel={activeAssignment?.weekLabel} onComplete={() => {}} />
+                  <WeeklyCheckIn studentId={studentId} token={token} weekLabel={activeAssignment?.weekLabel} onComplete={() => {}} teacherName={teacherName} />
                 )}
 
                 {assignments.length > 1 && (
@@ -7634,7 +7634,7 @@
         // Clean up demo data on logout
         if (isDemo) {
           const cleanupToken = token || (studentAuth && studentAuth.token);
-          apiFetch("demo.php?action=cleanup", { method: "POST" }, cleanupToken).catch(() => {});
+          apiFetch("demo.php?action=cleanup", {}, cleanupToken).catch(() => {});
         }
         setToken(null);
         setTeacher(null);
@@ -7652,6 +7652,7 @@
       // Student-authed view (logged in via PIN)
       if (studentAuth) {
         return (
+          <ErrorBoundary>
           <StudentView
             studentId={studentAuth.student.id}
             student={studentAuth.student}
@@ -7660,6 +7661,7 @@
             isStudentAuth={true}
             teacherName={studentAuth.student.teacher_name}
           />
+          </ErrorBoundary>
         );
       }
 
@@ -7850,7 +7852,7 @@
           <TourHelpButton onTour={() => setShowTour(true)} onHelp={() => setTeacherPage("help")} />
 
           <div style={{ textAlign: "center", padding: "20px 0 12px", fontSize: "11px", color: "#94a3b8" }}>
-            &copy; {new Date().getFullYear()} Boing Media Ltd. Created by Dr Mark Baynes.
+            &copy; {new Date().getFullYear()} Boing Media Ltd. Dr Mark Baynes.
           </div>
         </div>
       );
