@@ -7412,6 +7412,18 @@
           id: "t10", q: "How do I correct the AI when it gets something wrong?",
           a: "After YouTube import or when editing any content, there's an 'AI Refine' box. Type corrections in shorthand (e.g. 'it's a ballad, Bb major, intermediate') and hit Enter. The AI rebuilds the entry based on your corrections."
         },
+        {
+          id: "t11", q: "How do I refine an AI-generated lesson?",
+          a: "After generating a lesson, you'll see a purple 'Refine with AI' bar. Type feedback about what to change (e.g. 'make it shorter', 'add more chord voicings', 'focus on left hand') and the AI regenerates the lesson based on your notes. You can refine as many times as you like."
+        },
+        {
+          id: "t12", q: "What are Teaching Style Preferences?",
+          a: "In your Profile page, scroll down to find the Teaching Style Preferences form. Set your preferred tone, detail level, lesson length, and which sections to include (theory, exercises, tips). You can also add custom instructions. These preferences are applied to every AI-generated lesson."
+        },
+        {
+          id: "t13", q: "What are demo accounts?",
+          a: "Demo accounts let you explore the app as either a teacher or student without affecting real data. Use them to see how the platform works before setting up your own students, or to show prospective students what to expect."
+        },
       ];
 
       const studentFAQ = [
@@ -7447,6 +7459,18 @@
           id: "s8", q: "I forgot my PIN. What do I do?",
           a: "Ask " + tn + " \u2014 they can see your PIN on the Students page. They can also share your direct practice link which doesn't need a PIN."
         },
+        {
+          id: "s9", q: "How do I find a specific assignment?",
+          a: "Use the assignment dropdown at the top of the Practice tab to jump to any assignment. You can also open the assignment list panel for a full overview with completion status at a glance."
+        },
+        {
+          id: "s10", q: "How do I filter my practice steps?",
+          a: "Use the filter chips above your practice steps. Filter by completion status (all, to do, done) or by content type (lesson, video, audio, etc.) to focus on what matters most."
+        },
+        {
+          id: "s11", q: "What is the timeline view?",
+          a: "The timeline view shows all your assignments on a calendar so you can see your practice history and upcoming work at a glance. Toggle it with the calendar icon on the Practice tab."
+        },
       ];
 
       const tips = role === "teacher" ? [
@@ -7455,12 +7479,15 @@
         "Use 'View as Student' to preview assignments before releasing them.",
         "Bulk Generate is great for quickly building chord or scale exercise sets.",
         "Add observations during lessons \u2014 they feed into AI practice summaries.",
+        "Set your Teaching Style Preferences in Profile so AI lessons match your voice.",
+        "Use the Refine button after generating a lesson to tweak it before assigning.",
       ] : [
         "Try to practise a little bit every day rather than one long session.",
         "Use the timer to track your practice \u2014 it helps you build consistency.",
         "Record yourself regularly \u2014 listening back is one of the best ways to improve.",
         "Fill in your Learning Preferences so " + tn + " can tailor your assignments.",
         "Don't skip the self-assessment after each step \u2014 it helps you reflect on your progress.",
+        "Use filters to show only incomplete steps when you want to focus on what's left.",
       ];
 
       const faqs = role === "teacher" ? teacherFAQ : studentFAQ;
@@ -7548,6 +7575,11 @@
         nav: "library",
       },
       {
+        title: "AI Lesson Refinement",
+        body: "When you generate an AI lesson, you can review it and give feedback to refine the result. Works just like the YouTube import correction flow \u2014 describe what to change and the AI regenerates the lesson. Iterate until it's right.",
+        icon: "sparkle",
+      },
+      {
         title: "Assignments",
         body: "Build weekly practice assignments by dragging content from your library into step-by-step practice plans. Each assignment has a week label and ordered steps. Students see these as their practice checklist.",
         icon: "clipboard",
@@ -7560,13 +7592,19 @@
         nav: "toolbox",
       },
       {
-        title: "Student View",
-        body: "Use the 'Student View' dropdown in the top bar to see exactly what any student sees when they log in. Great for checking assignments look right before the lesson.",
+        title: "Teaching Style Preferences",
+        body: "In your Profile, set your preferred teaching style: tone, detail level, lesson length, and which sections to include. These preferences shape every AI-generated lesson so the output matches how you teach.",
+        icon: "user",
+        nav: "profile",
+      },
+      {
+        title: "Student View & Demo Accounts",
+        body: "Use the 'Student View' dropdown in the top bar to preview what any student sees. There are also built-in demo accounts (teacher and student) so you can explore the app without affecting real data.",
         icon: "eye",
       },
       {
         title: "AI Tools",
-        body: "AI features are sprinkled throughout: content generation, YouTube import with smart tagging, practice summaries, smart assignment suggestions, and recording feedback. Look for the sparkle icons.",
+        body: "AI features are sprinkled throughout: content generation, YouTube import with smart tagging, lesson refinement, practice summaries, smart assignment suggestions, and recording feedback. Look for the sparkle icons.",
         icon: "sparkle",
       },
       {
@@ -7589,6 +7627,12 @@
         nav: "practice",
       },
       {
+        title: "Finding Your Assignments",
+        body: "Use the assignment dropdown at the top to jump between assignments. Open the assignment list panel for a full overview, or switch to the timeline view to see everything on a calendar. Filter by completion status or content type to find what you need.",
+        icon: "clipboard",
+        nav: "practice",
+      },
+      {
         title: "Recording & Feedback",
         body: `Many steps let you record yourself playing. Hit the microphone button to capture a take, then get AI feedback on your performance. ${teacherName} can listen to your recordings too.`,
         icon: "mic",
@@ -7604,12 +7648,6 @@
         body: `Set up your profile and tell ${teacherName} about your learning style. This helps them tailor your assignments and helps the AI give you better feedback.`,
         icon: "user",
         nav: "profile",
-      },
-      {
-        title: "Past Assignments",
-        body: "Scroll down on the Practice tab to find your past assignments. You can always go back and revisit previous weeks' work.",
-        icon: "clipboard",
-        nav: "practice",
       },
       {
         title: "Ready to practise!",
